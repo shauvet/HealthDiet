@@ -492,7 +492,7 @@ const InventoryPage = observer(() => {
                           />
                         </Box>
                       }
-                      secondary={`需要: ${item.requiredQuantity} ${getUnitLabel(item.unit)}`}
+                      secondary={`需要: ${item.requiredQuantity || 0} ${getUnitLabel(item.unit)}`}
                     />
                     
                     <Box sx={{ ml: 2 }}>
@@ -509,7 +509,6 @@ const InventoryPage = observer(() => {
                           endAdornment: <InputAdornment position="end">{getUnitLabel(item.unit)}</InputAdornment>,
                           inputProps: { min: 0 }
                         }}
-                        sx={{ width: '120px' }}
                       />
                     </Box>
                   </ListItem>
