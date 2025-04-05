@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { observer } from 'mobx-react-lite';
 import { useNavigate, Link } from 'react-router-dom';
 import {
@@ -25,11 +25,12 @@ const RegisterPage = observer(() => {
   });
   const [error, setError] = useState('');
   
-  // Redirect if already authenticated
-  if (userStore.isAuthenticated) {
-    navigate('/');
-    return null;
-  }
+  // 使用useEffect处理重定向逻辑
+  useEffect(() => {
+    if (userStore.isAuthenticated) {
+      navigate('/');
+    }
+  }, [navigate]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;

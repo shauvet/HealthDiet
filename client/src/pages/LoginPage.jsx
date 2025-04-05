@@ -31,11 +31,12 @@ const LoginPage = observer(() => {
     }
   }, []);
   
-  // Redirect if already authenticated
-  if (userStore.isAuthenticated) {
-    navigate(savedPath || '/');
-    return null;
-  }
+  // 使用useEffect处理重定向逻辑
+  useEffect(() => {
+    if (userStore.isAuthenticated) {
+      navigate(savedPath || '/');
+    }
+  }, [savedPath, navigate]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
