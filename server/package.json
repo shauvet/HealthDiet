@@ -12,6 +12,8 @@
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
+    "start:express": "node src/express-app.js",
+    "dev": "node src/express-app.js",
     "lint": "eslint \"{src,apps,libs,test}/**/*.js\" --fix",
     "test": "jest",
     "test:watch": "jest --watch",

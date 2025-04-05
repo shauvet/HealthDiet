@@ -34,6 +34,15 @@ apiRouter.get('/', (req, res) => {
   res.json({ message: 'Welcome to Health Diet API!' });
 });
 
+// Health check endpoint
+apiRouter.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
 // Auth routes
 apiRouter.post('/auth/login', (req, res) => {
   const { email } = req.body;
