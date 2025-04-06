@@ -58,7 +58,7 @@ const MealPlanPage = observer(() => {
   
   useEffect(() => {
     fetchMeals();
-  }, [dateRange]);
+  }, [fetchMeals]);
   
   const formatDate = (dateString) => {
     const date = new Date(dateString);

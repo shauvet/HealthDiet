@@ -1,4 +1,4 @@
-import { makeAutoObservable } from 'mobx';
+import { makeAutoObservable, runInAction } from 'mobx';
 import api from '../api/axiosConfig';
 
 class HealthStore {
@@ -18,11 +18,15 @@ class HealthStore {
   }
   
   setTimeRange(timeRange) {
-    this.timeRange = timeRange;
+    runInAction(() => {
+      this.timeRange = timeRange;
+    });
   }
   
   setCustomDateRange(startDate, endDate) {
-    this.customDateRange = { startDate, endDate };
+    runInAction(() => {
+      this.customDateRange = { startDate, endDate };
+    });
   }
   
   // Fetch all stats at once
@@ -36,7 +40,9 @@ class HealthStore {
   
   // Fetch nutrition data for analysis
   async fetchNutritionData() {
-    this.loading = true;
+    runInAction(() => {
+      this.loading = true;
+    });
     try {
       let endpoint = `/health/nutrition/${this.timeRange}`;
       
@@ -45,18 +51,26 @@ class HealthStore {
       }
       
       const response = await api.get(endpoint);
-      this.nutritionData = response.data;
-      this.error = null;
+      runInAction(() => {
+        this.nutritionData = response.data;
+        this.error = null;
+      });
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
   
   // Fetch recipe statistics
   async fetchRecipeStats() {
-    this.loading = true;
+    runInAction(() => {
+      this.loading = true;
+    });
     try {
       let endpoint = `/health/recipes/${this.timeRange}`;
       
@@ -65,18 +79,26 @@ class HealthStore {
       }
       
       const response = await api.get(endpoint);
-      this.recipeStats = response.data;
-      this.error = null;
+      runInAction(() => {
+        this.recipeStats = response.data;
+        this.error = null;
+      });
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
   
   // Fetch ingredient consumption statistics
   async fetchIngredientStats() {
-    this.loading = true;
+    runInAction(() => {
+      this.loading = true;
+    });
     try {
       let endpoint = `/health/ingredients/${this.timeRange}`;
       
@@ -85,12 +107,18 @@ class HealthStore {
       }
       
       const response = await api.get(endpoint);
-      this.ingredientStats = response.data;
-      this.error = null;
+      runInAction(() => {
+        this.ingredientStats = response.data;
+        this.error = null;
+      });
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
   

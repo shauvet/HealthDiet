@@ -147,7 +147,7 @@ const ProfilePage = observer(() => {
     }
     
     userStore.fetchFamilyMembers();
-  }, [userStore.currentUser]);
+  }, []);
   
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -523,7 +523,7 @@ const ProfilePage = observer(() => {
                           </Box>
                         }
                         secondary={
-                          <Box>
+                          <Box component="span">
                             <Typography variant="body2" component="span">
                               {member.gender === 'male' ? '男' : 
                                member.gender === 'female' ? '女' : '其他'}
@@ -532,7 +532,7 @@ const ProfilePage = observer(() => {
                                ` · ${member.height}cm/${member.weight}kg`}
                             </Typography>
                             {member.allergies && (
-                              <Typography variant="body2" component="div" color="error">
+                              <Typography variant="body2" component="span" color="error">
                                 过敏物: {member.allergies}
                               </Typography>
                             )}

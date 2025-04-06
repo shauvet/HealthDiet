@@ -1,4 +1,4 @@
-import { makeAutoObservable } from 'mobx';
+import { makeAutoObservable, runInAction } from 'mobx';
 import api from '../api/axiosConfig';
 
 class RecipeStore {
@@ -16,43 +16,67 @@ class RecipeStore {
   
   // Fetch recommended recipes from network
   async fetchRecommendedRecipes() {
-    this.loading = true;
+    runInAction(() => {
+      this.loading = true;
+    });
     try {
       const response = await api.get('/recipes/recommended');
-      this.recipes.recommended = response.data;
-      this.error = null;
+      runInAction(() => {
+        this.recipes.recommended = response.data;
+        this.error = null;
+      });
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
   
   // Fetch user's personal recipes
   async fetchPersonalRecipes() {
-    this.loading = true;
+    runInAction(() => {
+      this.loading = true;
+    });
     try {
       const response = await api.get('/recipes/personal');
-      this.recipes.personal = response.data;
-      this.error = null;
+      runInAction(() => {
+        this.recipes.personal = response.data;
+        this.error = null;
+      });
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
   
   // Fetch favorite recipes
   async fetchFavoriteRecipes() {
-    this.loading = true;
+    runInAction(() => {
+      this.loading = true;
+    });
     try {
       const response = await api.get('/recipes/favorite');
-      this.recipes.favorite = response.data;
-      this.error = null;
+      runInAction(() => {
+        this.recipes.favorite = response.data;
+        this.error = null;
+      });
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
   
@@ -63,7 +87,9 @@ class RecipeStore {
       await this.fetchFavoriteRecipes();
       await this.fetchRecommendedRecipes();
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
     }
   }
   
@@ -78,54 +104,78 @@ class RecipeStore {
       });
       return true;
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
       return false;
     }
   }
   
   // Create a new personal recipe
   async createRecipe(recipeData) {
-    this.loading = true;
+    runInAction(() => {
+      this.loading = true;
+    });
     try {
       await api.post('/recipes', recipeData);
       await this.fetchPersonalRecipes();
-      this.error = null;
+      runInAction(() => {
+        this.error = null;
+      });
       return true;
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
       return false;
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
   
   // Update an existing personal recipe
   async updateRecipe(recipeId, recipeData) {
-    this.loading = true;
+    runInAction(() => {
+      this.loading = true;
+    });
     try {
       await api.put(`/recipes/${recipeId}`, recipeData);
       await this.fetchPersonalRecipes();
-      this.error = null;
+      runInAction(() => {
+        this.error = null;
+      });
       return true;
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
       return false;
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
   
   // Search recipes by name or ingredient
   async searchRecipes(query) {
-    this.loading = true;
+    runInAction(() => {
+      this.loading = true;
+    });
     try {
       const response = await api.get(`/recipes/search?q=${query}`);
       return response.data;
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
       return [];
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
 }

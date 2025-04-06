@@ -1,4 +1,4 @@
-import { makeAutoObservable } from 'mobx';
+import { makeAutoObservable, runInAction } from 'mobx';
 import api from '../api/axiosConfig';
 
 class InventoryStore {
@@ -17,12 +17,18 @@ class InventoryStore {
     this.loading = true;
     try {
       const response = await api.get('/inventory');
-      this.ingredients = response.data;
-      this.error = null;
+      runInAction(() => {
+        this.ingredients = response.data;
+        this.error = null;
+      });
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
   
@@ -32,13 +38,19 @@ class InventoryStore {
     try {
       await api.post('/inventory', ingredientData);
       await this.fetchInventory();
-      this.error = null;
+      runInAction(() => {
+        this.error = null;
+      });
       return true;
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
       return false;
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
   
@@ -49,18 +61,24 @@ class InventoryStore {
       await api.put(`/inventory/${ingredientId}`, { quantity });
       
       // Update local state
-      const index = this.ingredients.findIndex(i => i.id === ingredientId);
-      if (index !== -1) {
-        this.ingredients[index].quantity = quantity;
-      }
+      runInAction(() => {
+        const index = this.ingredients.findIndex(i => i.id === ingredientId);
+        if (index !== -1) {
+          this.ingredients[index].quantity = quantity;
+        }
+        this.error = null;
+      });
       
-      this.error = null;
       return true;
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
       return false;
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
   
@@ -71,15 +89,21 @@ class InventoryStore {
       await api.delete(`/inventory/${ingredientId}`);
       
       // Update local state
-      this.ingredients = this.ingredients.filter(i => i.id !== ingredientId);
+      runInAction(() => {
+        this.ingredients = this.ingredients.filter(i => i.id !== ingredientId);
+        this.error = null;
+      });
       
-      this.error = null;
       return true;
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
       return false;
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
   
@@ -88,12 +112,18 @@ class InventoryStore {
     this.loading = true;
     try {
       const response = await api.get('/inventory/shopping-list');
-      this.shoppingList = response.data;
-      this.error = null;
+      runInAction(() => {
+        this.shoppingList = response.data;
+        this.error = null;
+      });
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
   
@@ -104,13 +134,19 @@ class InventoryStore {
       await api.post('/inventory/purchased', { ingredientIds });
       await this.fetchShoppingList();
       await this.fetchInventory();
-      this.error = null;
+      runInAction(() => {
+        this.error = null;
+      });
       return true;
     } catch (error) {
-      this.error = error.message;
+      runInAction(() => {
+        this.error = error.message;
+      });
       return false;
     } finally {
-      this.loading = false;
+      runInAction(() => {
+        this.loading = false;
+      });
     }
   }
   
