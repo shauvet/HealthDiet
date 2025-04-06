@@ -4,8 +4,8 @@
 
 ## 技术栈
 
-- **前端**：React + MobX + TypeScript + Material-UI
-- **后端**：Node.js + NestJS + TypeScript
+- **前端**：React + MobX + Javascript + Material-UI
+- **后端**：Node.js + NestJS
 - **数据库**：MongoDB
 
 ## 主要功能
@@ -66,19 +66,19 @@ HealthDiet/
 ├── server/                     # 后端NestJS应用
 │   └── src/
 │       ├── models/             # MongoDB模型
-│       │   ├── recipe.model.ts
-│       │   ├── menu.model.ts
-│       │   ├── inventory.model.ts
-│       │   ├── user.model.ts
-│       │   └── analysis.model.ts
+│       │   ├── recipe.model.js
+│       │   ├── menu.model.js
+│       │   ├── inventory.model.js
+│       │   ├── user.model.js
+│       │   └── analysis.model.js
 │       ├── modules/            # 功能模块
 │       │   ├── recipes/
 │       │   ├── menus/
 │       │   ├── inventory/
 │       │   ├── analysis/
 │       │   └── users/
-│       ├── app.module.ts
-│       └── main.ts
+│       ├── app.module.js
+│       └── main.js
 │
 └── README.md                   # 项目说明
 ```
@@ -87,7 +87,7 @@ HealthDiet/
 
 ### 前提条件
 
-- Node.js 18.x 或更高版本
+- Node.js 20.11.1 或更高版本
 - MongoDB 4.4 或更高版本
 
 ### 安装步骤
@@ -95,13 +95,13 @@ HealthDiet/
 1. 安装前端依赖:
    ```
    cd client
-   npm install
+   pnpm install
    ```
 
 2. 安装后端依赖:
    ```
    cd ../server
-   npm install
+   pnpm install
    ```
 
 3. 设置环境变量:
@@ -122,16 +122,16 @@ HealthDiet/
 2. 启动后端服务器:
    ```
    cd server
-   npm run start:dev
+   pnpm run start:dev
    ```
 
 3. 启动前端开发服务器:
    ```
    cd client
-   npm start
+   pnpm start
    ```
 
-4. 在浏览器中访问 `http://localhost:3000`
+4. 在浏览器中访问 `http://localhost:5173`
 
 ## 界面预览
 
@@ -160,4 +160,4 @@ HealthDiet/
 
 ## 联系
 
-项目链接: [https://github.com/yourusername/healthdiet](https://github.com/yourusername/healthdiet) 
+项目链接: [https://github.com/shauvet/healthdiet](https://github.com/shauvet/healthdiet) 
