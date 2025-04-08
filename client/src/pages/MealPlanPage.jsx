@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { observer } from 'mobx-react-lite';
 import {
   Box,
@@ -55,6 +55,21 @@ const MealPlanPage = observer(() => {
       currentWeek: true
     };
   });
+
+  const fetchMeals = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await mealPlanStore.fetchMealPlans(
+        formatDateForAPI(dateRange.startDate),
+        formatDateForAPI(dateRange.endDate)
+      );
+    } catch {
+      setError('加载菜单失败，请稍后重试');
+    } finally {
+      setLoading(false);
+    }
+  }, [dateRange]);
   
   useEffect(() => {
     fetchMeals();
@@ -109,21 +124,6 @@ const MealPlanPage = observer(() => {
   
   const formatDateForAPI = (date) => {
     return date.toISOString().split('T')[0];
-  };
-  
-  const fetchMeals = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      await mealPlanStore.fetchMealPlans(
-        formatDateForAPI(dateRange.startDate),
-        formatDateForAPI(dateRange.endDate)
-      );
-    } catch {
-      setError('加载菜单失败，请稍后重试');
-    } finally {
-      setLoading(false);
-    }
   };
   
   const handlePreviousWeek = () => {
@@ -331,7 +331,7 @@ const MealPlanPage = observer(() => {
                                 />
                                 <ListItemText
                                   primary={meal.recipe?.name || '未知菜品'}
-                                  secondary={`${meal.servings} 份`}
+                                  secondary={`${meal.servings || 0} 份`}
                                 />
                                 <ListItemSecondaryAction>
                                   <IconButton 
