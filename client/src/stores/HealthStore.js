@@ -1,162 +1,148 @@
 import { makeAutoObservable, runInAction } from 'mobx';
-import api from '../api/axiosConfig';
+import axios from 'axios';
+
+// 创建一个配置了基础URL的axios实例
+const api = axios.create({
+  baseURL: 'http://localhost:3001/api'
+});
 
 class HealthStore {
-  nutritionData = null;
-  recipeStats = null;
-  ingredientStats = null;
-  timeRange = 'week'; // 'week', 'month', 'year', 'custom'
+  loading = false;
+  error = null;
+  
+  // 数据状态
+  nutrientData = null;
+  dietStructure = null;
+  nutritionTrends = null;
+  vitaminIntake = null;
+  mineralIntake = null;
+  ingredientUsage = null;
+  nutritionAdvice = null;
+  ingredientDiversity = null;
+
+  // 时间范围
+  timeRange = 'week';
   customDateRange = {
     startDate: null,
     endDate: null
   };
-  loading = false;
-  error = null;
-  
+
   constructor() {
     makeAutoObservable(this);
   }
-  
-  setTimeRange(timeRange) {
-    runInAction(() => {
-      this.timeRange = timeRange;
-    });
+
+  setTimeRange(range) {
+    this.timeRange = range;
   }
-  
+
   setCustomDateRange(startDate, endDate) {
-    runInAction(() => {
-      this.customDateRange = { startDate, endDate };
-    });
+    this.customDateRange = { startDate, endDate };
   }
-  
-  // Fetch all stats at once
-  async fetchAllStats() {
-    await Promise.all([
-      this.fetchNutritionData(),
-      this.fetchRecipeStats(),
-      this.fetchIngredientStats()
-    ]);
-  }
-  
-  // Fetch nutrition data for analysis
-  async fetchNutritionData() {
-    runInAction(() => {
-      this.loading = true;
-    });
+
+  // 获取所有健康数据
+  async fetchAllHealthData() {
     try {
-      let endpoint = `/health/nutrition/${this.timeRange}`;
+      this.loading = true;
+      this.error = null;
+
+      const params = {
+        timeRange: this.timeRange,
+        ...(this.timeRange === 'custom' && {
+          startDate: this.customDateRange.startDate,
+          endDate: this.customDateRange.endDate
+        })
+      };
+
+      const response = await api.get('/health/all', { params });
       
-      if (this.timeRange === 'custom' && this.customDateRange.startDate && this.customDateRange.endDate) {
-        endpoint = `/health/nutrition/custom?startDate=${this.customDateRange.startDate}&endDate=${this.customDateRange.endDate}`;
-      }
-      
-      const response = await api.get(endpoint);
       runInAction(() => {
-        this.nutritionData = response.data;
-        this.error = null;
+        const data = response.data;
+        this.nutrientData = data.nutrientData;
+        this.dietStructure = data.dietStructure;
+        this.nutritionTrends = data.nutritionTrends;
+        this.vitaminIntake = data.vitaminIntake;
+        this.mineralIntake = data.mineralIntake;
+        this.ingredientUsage = data.ingredientUsage;
+        this.nutritionAdvice = data.nutritionAdvice;
+        this.ingredientDiversity = data.ingredientDiversity;
+        this.loading = false;
+      });
+    } catch (error) {
+      runInAction(() => {
+        this.error = error.message;
+        this.loading = false;
+      });
+    }
+  }
+
+  // 获取日均营养摄入数据
+  async fetchNutrientData() {
+    try {
+      const response = await api.get('/health/nutrition/daily');
+      runInAction(() => {
+        this.nutrientData = response.data;
       });
     } catch (error) {
       runInAction(() => {
         this.error = error.message;
       });
-    } finally {
-      runInAction(() => {
-        this.loading = false;
-      });
     }
   }
-  
-  // Fetch recipe statistics
-  async fetchRecipeStats() {
-    runInAction(() => {
-      this.loading = true;
-    });
+
+  // 获取营养摄入趋势数据
+  async fetchNutritionTrends() {
     try {
-      let endpoint = `/health/recipes/${this.timeRange}`;
-      
-      if (this.timeRange === 'custom' && this.customDateRange.startDate && this.customDateRange.endDate) {
-        endpoint = `/health/recipes/custom?startDate=${this.customDateRange.startDate}&endDate=${this.customDateRange.endDate}`;
-      }
-      
-      const response = await api.get(endpoint);
+      const response = await api.get('/health/nutrition/trends');
       runInAction(() => {
-        this.recipeStats = response.data;
-        this.error = null;
+        this.nutritionTrends = response.data;
       });
     } catch (error) {
       runInAction(() => {
         this.error = error.message;
       });
-    } finally {
-      runInAction(() => {
-        this.loading = false;
-      });
     }
   }
-  
-  // Fetch ingredient consumption statistics
-  async fetchIngredientStats() {
-    runInAction(() => {
-      this.loading = true;
-    });
+
+  // 获取维生素摄入数据
+  async fetchVitaminIntake() {
     try {
-      let endpoint = `/health/ingredients/${this.timeRange}`;
-      
-      if (this.timeRange === 'custom' && this.customDateRange.startDate && this.customDateRange.endDate) {
-        endpoint = `/health/ingredients/custom?startDate=${this.customDateRange.startDate}&endDate=${this.customDateRange.endDate}`;
-      }
-      
-      const response = await api.get(endpoint);
+      const response = await api.get('/health/nutrition/vitamins');
       runInAction(() => {
-        this.ingredientStats = response.data;
-        this.error = null;
+        this.vitaminIntake = response.data;
       });
     } catch (error) {
       runInAction(() => {
         this.error = error.message;
       });
-    } finally {
+    }
+  }
+
+  // 获取矿物质摄入数据
+  async fetchMineralIntake() {
+    try {
+      const response = await api.get('/health/nutrition/minerals');
       runInAction(() => {
-        this.loading = false;
+        this.mineralIntake = response.data;
+      });
+    } catch (error) {
+      runInAction(() => {
+        this.error = error.message;
       });
     }
   }
-  
-  // Get protein data for charts
-  getProteinData() {
-    return this.nutritionData ? this.nutritionData.protein : [];
-  }
-  
-  // Get fat data for charts
-  getFatData() {
-    return this.nutritionData ? this.nutritionData.fat : [];
-  }
-  
-  // Get carbs data for charts
-  getCarbsData() {
-    return this.nutritionData ? this.nutritionData.carbs : [];
-  }
-  
-  // Get vitamins data for charts
-  getVitaminsData() {
-    return this.nutritionData ? this.nutritionData.vitamins : [];
-  }
-  
-  // Get minerals data for charts
-  getMineralsData() {
-    return this.nutritionData ? this.nutritionData.minerals : [];
-  }
-  
-  // Get top consumed recipes
-  getTopRecipes(limit = 5) {
-    if (!this.recipeStats) return [];
-    return this.recipeStats.slice(0, limit);
-  }
-  
-  // Get top consumed ingredients
-  getTopIngredients(limit = 5) {
-    if (!this.ingredientStats) return [];
-    return this.ingredientStats.slice(0, limit);
+
+  // 获取饮食结构数据
+  async fetchDietStructure() {
+    try {
+      const response = await api.get('/health/diet/structure');
+      runInAction(() => {
+        this.dietStructure = response.data;
+      });
+    } catch (error) {
+      runInAction(() => {
+        this.error = error.message;
+      });
+    }
   }
 }
 

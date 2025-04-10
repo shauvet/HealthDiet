@@ -43,9 +43,13 @@ function TabPanel({ children, value, index, ...other }) {
       id={`health-tabpanel-${index}`}
       aria-labelledby={`health-tab-${index}`}
       {...other}
+      style={{ width: '100%' }}
     >
       {value === index && (
-        <Box sx={{ p: 2 }}>
+        <Box sx={{ 
+          width: '100%',
+          p: 0 // 移除内边距
+        }}>
           {children}
         </Box>
       )}
@@ -105,32 +109,6 @@ const HealthPage = observer(() => {
     endDate: new Date().toISOString().split('T')[0]
   });
   
-  // Example data - would come from the store in a real app
-  const nutrientData = {
-    calories: { value: 1850, max: 2000, unit: 'kcal', color: 'warning.main' },
-    protein: { value: 75, max: 80, unit: 'g', color: 'success.main' },
-    fat: { value: 65, max: 70, unit: 'g', color: 'error.main' },
-    carbs: { value: 220, max: 250, unit: 'g', color: 'info.main' },
-    fiber: { value: 22, max: 30, unit: 'g', color: 'secondary.main' },
-  };
-  
-  // Example top food items - would come from the API
-  const topRecipes = [
-    { name: '番茄炒蛋', count: 7 },
-    { name: '红烧肉', count: 5 },
-    { name: '清蒸鱼', count: 4 },
-    { name: '炒青菜', count: 4 },
-    { name: '鱼香肉丝', count: 3 },
-  ];
-  
-  const topIngredients = [
-    { name: '鸡蛋', count: 14 },
-    { name: '西红柿', count: 9 },
-    { name: '猪肉', count: 8 },
-    { name: '青菜', count: 8 },
-    { name: '大米', count: 7 },
-  ];
-  
   useEffect(() => {
     // When component mounts or time range changes, fetch data
     healthStore.setTimeRange(timeRange);
@@ -139,7 +117,7 @@ const HealthPage = observer(() => {
       healthStore.setCustomDateRange(customDateRange.startDate, customDateRange.endDate);
     }
     
-    healthStore.fetchAllStats();
+    healthStore.fetchAllHealthData();
   }, [timeRange, customDateRange]);
   
   const handleTabChange = (event, newValue) => {
@@ -157,8 +135,93 @@ const HealthPage = observer(() => {
     });
   };
   
+  // 渲染营养摄入趋势
+  const renderNutritionTrend = () => (
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="subtitle1" gutterBottom>
+        最近7天营养摄入变化
+      </Typography>
+      {healthStore.nutritionTrends && Object.entries(healthStore.nutritionTrends.data).map(([nutrient, values]) => (
+        <Box key={nutrient} sx={{ mb: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+            <Typography variant="body2">
+              {nutrient === 'calories' ? '热量 (kcal)' :
+               nutrient === 'protein' ? '蛋白质 (g)' :
+               nutrient === 'fat' ? '脂肪 (g)' :
+               nutrient === 'carbs' ? '碳水化合物 (g)' : '膳食纤维 (g)'}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              平均: {Math.round(values.reduce((a, b) => a + b) / values.length)}
+            </Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'flex-end', height: 40 }}>
+            {values.map((value, index) => (
+              <Box
+                key={index}
+                sx={{
+                  flex: 1,
+                  mx: 0.5,
+                  height: `${(value / Math.max(...values)) * 100}%`,
+                  bgcolor: 'primary.main',
+                  borderRadius: '2px 2px 0 0',
+                  position: 'relative',
+                  '&:hover': {
+                    bgcolor: 'primary.dark',
+                  }
+                }}
+              />
+            ))}
+          </Box>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
+            {healthStore.nutritionTrends.dates.map((date, index) => (
+              <Typography key={index} variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'center' }}>
+                {date}
+              </Typography>
+            ))}
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
+
+  // 渲染营养素进度条
+  const NutrientBar = ({ name, current, recommended, unit }) => {
+    const percentage = (current / recommended) * 100;
+    return (
+      <Box sx={{ mb: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+          <Typography variant="body2">{name}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {current}{unit} / {recommended}{unit}
+          </Typography>
+        </Box>
+        <Box sx={{ position: 'relative', height: 8, bgcolor: 'grey.200', borderRadius: 1 }}>
+          <Box
+            sx={{
+              position: 'absolute',
+              left: 0,
+              top: 0,
+              height: '100%',
+              borderRadius: 1,
+              width: `${Math.min(percentage, 100)}%`,
+              bgcolor: percentage >= 90 ? 'success.main' :
+                      percentage >= 60 ? 'warning.main' : 'error.main',
+            }}
+          />
+        </Box>
+      </Box>
+    );
+  };
+
   return (
-    <Box sx={{ width: '100%' }}>
+    <Box sx={{ 
+      width: '100%',
+      maxWidth: '100%',
+      overflow: 'hidden',
+      margin: 0,
+      padding: 0,
+      paddingTop: 2
+    }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" component="h1">健康分析</Typography>
         
@@ -219,23 +282,40 @@ const HealthPage = observer(() => {
       
       {/* Nutrition Tab */}
       <TabPanel value={tabValue} index={0}>
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <Card>
+        <Grid 
+          container 
+          spacing={{ xs: 2, sm: 3 }} 
+          sx={{ 
+            width: '100%',
+            margin: '0 !important',
+            padding: '0 !important'
+          }}
+        >
+          {/* 日均营养摄入 */}
+          <Grid item xs={12} sx={{ padding: { xs: '0 !important' } }}>
+            <Card sx={{ 
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: { xs: 0, sm: 1 }
+            }}>
               <CardHeader title="日均营养摄入" />
               <CardContent>
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={6}>
-                    <ChartPlaceholder>
+                    <ChartPlaceholder sx={{
+                      width: '100%',
+                      minHeight: { xs: 200, sm: 300 }
+                    }}>
                       <Typography className="placeholder-text">营养摄入雷达图</Typography>
                     </ChartPlaceholder>
                   </Grid>
                   <Grid item xs={12} md={6}>
-                    <Box sx={{ mb: 2 }}>
+                    <Box sx={{ width: '100%' }}>
                       <Typography variant="subtitle1" gutterBottom>
                         营养素摄入状况
                       </Typography>
-                      {Object.entries(nutrientData).map(([key, data]) => (
+                      {healthStore.nutrientData && Object.entries(healthStore.nutrientData).map(([key, data]) => (
                         <NutrientProgressIndicator
                           key={key}
                           label={key === 'calories' ? '热量' : 
@@ -255,38 +335,65 @@ const HealthPage = observer(() => {
             </Card>
           </Grid>
           
-          <Grid item xs={12}>
-            <Card>
+          {/* 营养摄入趋势 */}
+          <Grid item xs={12} sx={{ padding: { xs: '0 !important' } }}>
+            <Card sx={{ 
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: { xs: 0, sm: 1 }
+            }}>
               <CardHeader title="营养摄入趋势" />
-              <CardContent>
-                <ChartPlaceholder>
-                  <Typography className="placeholder-text">营养摄入趋势图</Typography>
-                </ChartPlaceholder>
-                <Typography variant="body2" color="text.secondary">
-                  此图表显示了您在所选时间范围内的营养摄入趋势。您可以通过查看这些数据来调整您的饮食计划。
-                </Typography>
+              <CardContent sx={{ width: '100%' }}>
+                {healthStore.nutritionTrends && renderNutritionTrend()}
               </CardContent>
             </Card>
           </Grid>
           
-          <Grid item xs={12} md={6}>
-            <Card>
+          {/* 维生素摄入 */}
+          <Grid item xs={12} sx={{ padding: { xs: '0 !important' } }}>
+            <Card sx={{ 
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: { xs: 0, sm: 1 }
+            }}>
               <CardHeader title="维生素摄入" />
-              <CardContent>
-                <ChartPlaceholder sx={{ height: 250 }}>
-                  <Typography className="placeholder-text">维生素摄入柱状图</Typography>
-                </ChartPlaceholder>
+              <CardContent sx={{ width: '100%', flex: 1 }}>
+                {healthStore.vitaminIntake && healthStore.vitaminIntake.map((vitamin) => (
+                  <NutrientBar
+                    key={vitamin.name}
+                    name={vitamin.name}
+                    current={vitamin.current}
+                    recommended={vitamin.recommended}
+                    unit={vitamin.unit}
+                  />
+                ))}
               </CardContent>
             </Card>
           </Grid>
           
-          <Grid item xs={12} md={6}>
-            <Card>
+          {/* 矿物质摄入 */}
+          <Grid item xs={12} sx={{ padding: { xs: '0 !important' } }}>
+            <Card sx={{ 
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: { xs: 0, sm: 1 }
+            }}>
               <CardHeader title="矿物质摄入" />
-              <CardContent>
-                <ChartPlaceholder sx={{ height: 250 }}>
-                  <Typography className="placeholder-text">矿物质摄入柱状图</Typography>
-                </ChartPlaceholder>
+              <CardContent sx={{ width: '100%', flex: 1 }}>
+                {healthStore.mineralIntake && healthStore.mineralIntake.map((mineral) => (
+                  <NutrientBar
+                    key={mineral.name}
+                    name={mineral.name}
+                    current={mineral.current}
+                    recommended={mineral.recommended}
+                    unit={mineral.unit}
+                  />
+                ))}
               </CardContent>
             </Card>
           </Grid>
@@ -295,34 +402,90 @@ const HealthPage = observer(() => {
       
       {/* Food Statistics Tab */}
       <TabPanel value={tabValue} index={1}>
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <Card>
+        <Grid 
+          container 
+          spacing={{ xs: 2, sm: 3 }}
+          sx={{ 
+            width: '100%',
+            margin: '0 !important',
+            padding: '0 !important'
+          }}
+        >
+          {/* 饮食结构分析 */}
+          <Grid item xs={12} sx={{ padding: { xs: '0 !important' } }}>
+            <Card sx={{ 
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              borderRadius: { xs: 0, sm: 1 }
+            }}>
               <CardHeader title="饮食结构分析" />
-              <CardContent>
+              <CardContent sx={{ width: '100%', overflow: 'hidden' }}>
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={6}>
-                    <ChartPlaceholder>
-                      <Typography className="placeholder-text">饮食结构饼图</Typography>
-                    </ChartPlaceholder>
+                    <Box sx={{ 
+                      width: '100%',
+                      height: { xs: 200, sm: 300 },
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Typography variant="body1" color="text.secondary">
+                        饮食结构饼图
+                      </Typography>
+                    </Box>
                   </Grid>
                   <Grid item xs={12} md={6}>
-                    <Typography variant="subtitle1" gutterBottom>
-                      建议改进
-                    </Typography>
-                    <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-                      <Typography variant="body2" paragraph>
-                        • 增加蔬菜水果的摄入量，建议每天300-500克
+                    <Box sx={{ width: '100%' }}>
+                      <Typography variant="subtitle1" gutterBottom>
+                        各类食物占比
                       </Typography>
-                      <Typography variant="body2" paragraph>
-                        • 减少精制碳水化合物，增加全谷物的比例
-                      </Typography>
-                      <Typography variant="body2" paragraph>
-                        • 适当增加优质蛋白质的摄入，如鱼类、鸡肉和豆制品
-                      </Typography>
-                      <Typography variant="body2">
-                        • 减少油炸食品和加工食品的摄入频率
-                      </Typography>
+                      {healthStore.dietStructure && Object.entries(healthStore.dietStructure).map(([key, data]) => (
+                        <Box key={key} sx={{ 
+                          mb: 2, 
+                          width: '100%',
+                          pr: { xs: 0, sm: 1 }
+                        }}>
+                          <Box sx={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            mb: 0.5,
+                            width: '100%'
+                          }}>
+                            <Typography variant="body2">
+                              {key === 'grains' ? '谷物' :
+                               key === 'vegetables' ? '蔬菜' :
+                               key === 'fruits' ? '水果' :
+                               key === 'protein' ? '蛋白质' :
+                               key === 'dairy' ? '乳制品' : '油脂'}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {data.value}% / {data.recommended}%
+                            </Typography>
+                          </Box>
+                          <Box sx={{ 
+                            position: 'relative', 
+                            height: 8, 
+                            bgcolor: 'grey.200', 
+                            borderRadius: 1,
+                            width: '100%',
+                            overflow: 'hidden'
+                          }}>
+                            <Box
+                              sx={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                height: '100%',
+                                borderRadius: 1,
+                                width: `${Math.min((data.value / data.recommended) * 100, 100)}%`,
+                                bgcolor: data.value > data.recommended ? 'warning.main' : 'success.main',
+                                transition: 'width 0.3s ease'
+                              }}
+                            />
+                          </Box>
+                        </Box>
+                      ))}
                     </Box>
                   </Grid>
                 </Grid>
@@ -330,52 +493,104 @@ const HealthPage = observer(() => {
             </Card>
           </Grid>
           
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardHeader title="常吃菜品 Top 5" />
-              <CardContent>
-                <List>
-                  {topRecipes.map((recipe, index) => (
-                    <ListItem key={index} divider={index < topRecipes.length - 1}>
-                      <ListItemText 
-                        primary={recipe.name} 
-                        secondary={`食用次数: ${recipe.count}`} 
-                      />
-                    </ListItem>
+          <Grid item xs={12}>
+            <Card sx={{ 
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <CardHeader title="食材多样性" />
+              <CardContent sx={{ width: '100%' }}>
+                <Grid container spacing={2}>
+                  {healthStore.ingredientDiversity && Object.entries(healthStore.ingredientDiversity).map(([key, data]) => (
+                    <Grid item xs={12} sm={6} md={3} key={key}>
+                      <Box sx={{ 
+                        width: '100%',
+                        textAlign: 'center', 
+                        p: 2 
+                      }}>
+                        <Typography variant="h4" color="primary">
+                          {data.count}/{data.target}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {data.description}
+                        </Typography>
+                        <Box sx={{ mt: 1, position: 'relative', height: 4, bgcolor: 'grey.200', borderRadius: 2 }}>
+                          <Box
+                            sx={{
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              height: '100%',
+                              borderRadius: 2,
+                              width: `${(data.count / data.target) * 100}%`,
+                              bgcolor: 'primary.main',
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                    </Grid>
                   ))}
-                </List>
-              </CardContent>
-            </Card>
-          </Grid>
-          
-          <Grid item xs={12} md={6}>
-            <Card>
-              <CardHeader title="常用食材 Top 5" />
-              <CardContent>
-                <List>
-                  {topIngredients.map((ingredient, index) => (
-                    <ListItem key={index} divider={index < topIngredients.length - 1}>
-                      <ListItemText 
-                        primary={ingredient.name} 
-                        secondary={`使用次数: ${ingredient.count}`} 
-                      />
-                    </ListItem>
-                  ))}
-                </List>
+                </Grid>
               </CardContent>
             </Card>
           </Grid>
           
           <Grid item xs={12}>
-            <Card>
-              <CardHeader title="食材使用频率" />
-              <CardContent>
-                <ChartPlaceholder>
-                  <Typography className="placeholder-text">食材使用频率热图</Typography>
-                </ChartPlaceholder>
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                  此图表显示了各类食材在您饮食中的使用频率。颜色越深表示使用频率越高。
-                </Typography>
+            <Card sx={{ 
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <CardHeader title="营养建议" />
+              <CardContent sx={{ width: '100%' }}>
+                <Grid container spacing={3}>
+                  {healthStore.nutritionAdvice && healthStore.nutritionAdvice.map((section) => (
+                    <Grid item xs={12} md={6} key={section.category}>
+                      <Typography variant="subtitle1" gutterBottom>
+                        {section.category}
+                      </Typography>
+                      <List dense>
+                        {section.items.map((item, index) => (
+                          <ListItem key={index}>
+                            <ListItemText primary={item} />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Grid>
+                  ))}
+                </Grid>
+              </CardContent>
+            </Card>
+          </Grid>
+          
+          <Grid item xs={12}>
+            <Card sx={{ 
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              <CardHeader title="食材使用分析" />
+              <CardContent sx={{ width: '100%' }}>
+                <Grid container spacing={3}>
+                  {healthStore.ingredientUsage && healthStore.ingredientUsage.map((category) => (
+                    <Grid item xs={12} md={4} key={category.category}>
+                      <Typography variant="subtitle1" gutterBottom>
+                        {category.category}
+                      </Typography>
+                      <List dense>
+                        {category.items.map((item) => (
+                          <ListItem key={item.name}>
+                            <ListItemText 
+                              primary={item.name}
+                              secondary={`使用 ${item.frequency} 次`}
+                            />
+                          </ListItem>
+                        ))}
+                      </List>
+                    </Grid>
+                  ))}
+                </Grid>
               </CardContent>
             </Card>
           </Grid>

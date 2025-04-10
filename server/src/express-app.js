@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
+const healthRoutes = require('./health/health.routes');
 
 // Create Express app
 const app = express();
@@ -349,6 +350,9 @@ apiRouter.post('/mealplan/add', (req, res) => {
     },
   });
 });
+
+// 添加健康分析路由
+app.use('/api/health', healthRoutes);
 
 // Start server
 async function bootstrap() {
