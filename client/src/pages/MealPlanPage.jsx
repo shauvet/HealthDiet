@@ -286,60 +286,168 @@ const MealPlanPage = observer(() => {
           <CircularProgress />
         </Box>
       ) : (
-        <Grid container spacing={2}>
+        <Grid 
+          container 
+          spacing={2}
+          sx={{
+            width: '100%',
+            margin: '0 auto'
+          }}
+        >
           {weekDates.map((date, dateIndex) => (
-            <Grid item xs={12} md={6} lg={4} key={dateIndex}>
+            <Grid 
+              item 
+              xs={12} 
+              sm={6} 
+              md={4} 
+              key={dateIndex}
+              sx={{
+                display: 'flex',
+                width: {
+                  xs: '100%',
+                  sm: '50%',
+                  md: '33.333%'
+                }
+              }}
+            >
               <Card 
                 elevation={isToday(date) ? 3 : 1}
                 sx={{
                   opacity: isPastDate(date) ? 0.8 : 1,
-                  border: isToday(date) ? '2px solid #4caf50' : 'none'
+                  border: isToday(date) ? '2px solid #4caf50' : 'none',
+                  height: '100%',
+                  width: '100%',
+                  minHeight: 350,
+                  display: 'flex',
+                  flexDirection: 'column'
                 }}
               >
                 <CardHeader
                   title={formatDate(date)}
-                  titleTypographyProps={{ variant: 'h6' }}
+                  titleTypographyProps={{ 
+                    variant: 'h6',
+                    sx: {
+                      fontSize: '1rem',
+                      fontWeight: 600
+                    }
+                  }}
+                  sx={{ 
+                    backgroundColor: 'background.default',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    p: 2
+                  }}
                   action={
                     isToday(date) && (
-                      <Chip label="今天" color="primary" size="small" />
+                      <Chip 
+                        label="今天" 
+                        color="primary" 
+                        size="small"
+                        sx={{ mr: 1 }}
+                      />
                     )
                   }
                 />
-                <Divider />
-                <CardContent>
+                <CardContent 
+                  sx={{ 
+                    flexGrow: 1, 
+                    p: 2,
+                    '&:last-child': {
+                      pb: 2
+                    }
+                  }}
+                >
                   {['breakfast', 'lunch', 'dinner'].map(mealType => {
                     const mealsForType = getMealsForDateAndType(date, mealType);
                     return (
-                      <Box key={mealType} sx={{ mb: 2 }}>
-                        <Typography variant="subtitle1" gutterBottom>
+                      <Box 
+                        key={mealType} 
+                        sx={{ 
+                          mb: 2,
+                          '&:last-child': {
+                            mb: 0
+                          }
+                        }}
+                      >
+                        <Typography 
+                          variant="subtitle1" 
+                          gutterBottom
+                          sx={{
+                            fontWeight: 'medium',
+                            color: 'primary.main',
+                            borderBottom: '1px solid',
+                            borderColor: 'divider',
+                            pb: 0.5,
+                            fontSize: '0.875rem'
+                          }}
+                        >
                           {getMealTypeText(mealType)}
                         </Typography>
                         
                         {mealsForType.length === 0 ? (
-                          <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                          <Typography 
+                            variant="body2" 
+                            color="text.secondary" 
+                            sx={{ 
+                              fontStyle: 'italic',
+                              py: 1,
+                              textAlign: 'center',
+                              fontSize: '0.875rem'
+                            }}
+                          >
                             暂无菜单
                           </Typography>
                         ) : (
-                          <List dense>
+                          <List dense disablePadding>
                             {mealsForType.map(meal => (
-                              <ListItem key={meal.id} divider>
+                              <ListItem 
+                                key={meal.id} 
+                                divider
+                                sx={{
+                                  borderRadius: 1,
+                                  py: 0.5,
+                                  '&:hover': {
+                                    backgroundColor: 'action.hover'
+                                  },
+                                  '&:last-child': {
+                                    borderBottom: 'none'
+                                  }
+                                }}
+                              >
                                 <Checkbox
                                   edge="start"
                                   checked={selectedMeals.includes(meal.id)}
                                   onChange={() => handleToggleMeal(meal.id)}
                                   disabled={isPastDate(date)}
+                                  size="small"
                                 />
                                 <ListItemText
-                                  primary={meal.recipe?.name || '未知菜品'}
-                                  secondary={`${meal.servings || 0} 份`}
+                                  primary={
+                                    <Typography 
+                                      variant="body2"
+                                      sx={{ fontSize: '0.875rem' }}
+                                    >
+                                      {meal.recipe?.name || '未知菜品'}
+                                    </Typography>
+                                  }
+                                  secondary={
+                                    <Typography 
+                                      variant="body2" 
+                                      color="text.secondary"
+                                      sx={{ fontSize: '0.75rem' }}
+                                    >
+                                      {`${meal.servings || 0} 份`}
+                                    </Typography>
+                                  }
                                 />
                                 <ListItemSecondaryAction>
                                   <IconButton 
                                     edge="end" 
                                     onClick={() => handleCheckIngredients(meal.id)}
                                     color={getMealStatus(meal)}
+                                    size="small"
                                   >
-                                    <InventoryIcon />
+                                    <InventoryIcon fontSize="small" />
                                   </IconButton>
                                 </ListItemSecondaryAction>
                               </ListItem>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { observer } from 'mobx-react-lite';
 import { 
   Box, 
@@ -47,6 +47,11 @@ const RecipesPage = observer(() => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [filters, setFilters] = useState({
+    cuisines: [],
+    spiceLevel: [0, 3],
+    mealType: 'all'
+  });
   
   useEffect(() => {
     // Load recommended recipes on initial render
@@ -83,19 +88,47 @@ const RecipesPage = observer(() => {
       handleSearch();
     }
   };
+
+  const handleFilterChange = useCallback((newFilters) => {
+    setFilters(newFilters);
+  }, []);
   
-  // Get the appropriate recipe list based on the selected tab
+  // Get the appropriate recipe list based on the selected tab and apply filters
   const getRecipeList = () => {
+    let recipes = [];
     switch (tabValue) {
       case 0:
-        return recipeStore.recipes.recommended;
+        recipes = recipeStore.recipes.recommended;
+        break;
       case 1:
-        return recipeStore.recipes.personal;
+        recipes = recipeStore.recipes.personal;
+        break;
       case 2:
-        return recipeStore.recipes.favorite;
+        recipes = recipeStore.recipes.favorite;
+        break;
       default:
-        return [];
+        recipes = [];
     }
+
+    // Apply filters
+    return recipes.filter(recipe => {
+      // Filter by meal type
+      if (filters.mealType !== 'all' && recipe.mealType !== filters.mealType) {
+        return false;
+      }
+
+      // Filter by cuisine
+      if (filters.cuisines.length > 0 && !filters.cuisines.includes(recipe.cuisineId)) {
+        return false;
+      }
+
+      // Filter by spice level
+      if (recipe.spiceLevel < filters.spiceLevel[0] || recipe.spiceLevel > filters.spiceLevel[1]) {
+        return false;
+      }
+
+      return true;
+    });
   };
   
   return (
@@ -132,8 +165,8 @@ const RecipesPage = observer(() => {
         </Box>
       </Box>
       
-      {/* Recipe filter options could go here */}
-      <RecipeFilterMenu />
+      {/* Recipe filter options */}
+      <RecipeFilterMenu onFilterChange={handleFilterChange} />
       
       {/* Show search results if available */}
       {searchResults.length > 0 && (
@@ -170,11 +203,18 @@ const RecipesPage = observer(() => {
           </Box>
         ) : (
           <Grid container spacing={2}>
-            {recipeStore.recipes.recommended.map(recipe => (
+            {getRecipeList().map(recipe => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={recipe.id}>
                 <RecipeCard recipe={recipe} />
               </Grid>
             ))}
+            {getRecipeList().length === 0 && (
+              <Box sx={{ width: '100%', textAlign: 'center', py: 4 }}>
+                <Typography color="text.secondary">
+                  没有找到符合条件的菜谱
+                </Typography>
+              </Box>
+            )}
           </Grid>
         )}
       </TabPanel>
@@ -186,13 +226,13 @@ const RecipesPage = observer(() => {
           </Box>
         ) : (
           <Grid container spacing={2}>
-            {recipeStore.recipes.personal.map(recipe => (
+            {getRecipeList().map(recipe => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={recipe.id}>
                 <RecipeCard recipe={recipe} />
               </Grid>
             ))}
             
-            {recipeStore.recipes.personal.length === 0 && (
+            {getRecipeList().length === 0 && (
               <Box sx={{ width: '100%', textAlign: 'center', py: 4 }}>
                 <Typography color="text.secondary">
                   您还没有创建自己的菜谱，点击"创建菜谱"按钮开始添加
@@ -210,13 +250,13 @@ const RecipesPage = observer(() => {
           </Box>
         ) : (
           <Grid container spacing={2}>
-            {recipeStore.recipes.favorite.map(recipe => (
+            {getRecipeList().map(recipe => (
               <Grid item xs={12} sm={6} md={4} lg={3} key={recipe.id}>
                 <RecipeCard recipe={recipe} />
               </Grid>
             ))}
             
-            {recipeStore.recipes.favorite.length === 0 && (
+            {getRecipeList().length === 0 && (
               <Box sx={{ width: '100%', textAlign: 'center', py: 4 }}>
                 <Typography color="text.secondary">
                   您还没有收藏任何菜谱，浏览菜单并点击收藏按钮来添加

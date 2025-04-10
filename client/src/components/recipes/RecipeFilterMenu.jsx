@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Box,
   Chip,
@@ -32,11 +32,21 @@ const spiceLevels = [
   { value: 3, label: '重辣' }
 ];
 
-const RecipeFilterMenu = () => {
+const RecipeFilterMenu = ({ onFilterChange }) => {
   const [selectedCuisines, setSelectedCuisines] = useState([]);
   const [spiceLevel, setSpiceLevel] = useState([0, 3]); // From not spicy to very spicy
   const [mealType, setMealType] = useState('all');
   
+  // 当筛选条件改变时，通知父组件
+  useEffect(() => {
+    const filters = {
+      cuisines: selectedCuisines,
+      spiceLevel,
+      mealType
+    };
+    onFilterChange?.(filters);
+  }, [selectedCuisines, spiceLevel, mealType]);
+
   const handleCuisineClick = (cuisineId) => {
     if (selectedCuisines.includes(cuisineId)) {
       setSelectedCuisines(selectedCuisines.filter(id => id !== cuisineId));
