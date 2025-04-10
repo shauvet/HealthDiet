@@ -18,6 +18,7 @@ import RegisterPage from './pages/RegisterPage';
 
 // Import store
 import { userStore } from './stores/RootStore';
+import './App.css';
 
 // Create a theme
 const theme = createTheme({
