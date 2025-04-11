@@ -22,6 +22,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { observer } from 'mobx-react-lite';
 import { recipeStore } from '../../stores/RootStore';
+import foodPlaceholder from '../../assets/food-placeholder.svg';
 
 const initialIngredient = {
   name: '',
@@ -34,7 +35,6 @@ const CreateRecipeDialog = observer(({ open, onClose }) => {
   const [recipe, setRecipe] = useState({
     name: '',
     description: '',
-    imageUrl: '',
     cookingTime: 30,
     servings: 2,
     cuisine: '',
@@ -154,7 +154,6 @@ const CreateRecipeDialog = observer(({ open, onClose }) => {
     setRecipe({
       name: '',
       description: '',
-      imageUrl: '',
       cookingTime: 30,
       servings: 2,
       cuisine: '',
@@ -191,15 +190,6 @@ const CreateRecipeDialog = observer(({ open, onClose }) => {
             multiline
             rows={2}
             required
-          />
-          
-          <TextField
-            label="图片URL"
-            name="imageUrl"
-            value={recipe.imageUrl}
-            onChange={handleChange}
-            fullWidth
-            placeholder="https://example.com/image.jpg"
           />
           
           <Grid container spacing={2}>

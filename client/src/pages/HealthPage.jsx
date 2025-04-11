@@ -21,13 +21,17 @@ import {
   ListItemText,
   CircularProgress,
   Tabs,
-  Tab
+  Tab,
+  Container,
+  ListItemIcon
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import TodayIcon from '@mui/icons-material/Today';
 import DateRangeIcon from '@mui/icons-material/DateRange';
 import EqualizerIcon from '@mui/icons-material/Equalizer';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
 
 // Using MUI X Date Pickers would be better in a real app
 // For simplicity, we'll use the basic TextField with type="date"
@@ -220,16 +224,36 @@ const HealthPage = observer(() => {
       overflow: 'hidden',
       margin: 0,
       padding: 0,
-      paddingTop: 2
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center'
     }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" component="h1">健康分析</Typography>
-        
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <FormControl sx={{ minWidth: 150 }}>
-            <InputLabel id="time-range-label">时间范围</InputLabel>
+      <Container 
+        maxWidth={false}
+        disableGutters
+        sx={{ 
+          width: '100%',
+          padding: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center'
+        }}
+      >
+        <Box sx={{ 
+          width: '100%',
+          maxWidth: { xs: '100%', sm: '600px' },
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          mb: 3,
+          px: { xs: 2, sm: 0 }
+        }}>
+          <Typography variant="h5" component="h1">健康分析</Typography>
+          
+          <FormControl sx={{ minWidth: 120 }}>
+            <InputLabel id="time-range-select-label">时间范围</InputLabel>
             <Select
-              labelId="time-range-label"
+              labelId="time-range-select-label"
               id="time-range-select"
               value={timeRange}
               label="时间范围"
@@ -237,67 +261,77 @@ const HealthPage = observer(() => {
             >
               <MenuItem value="week">最近一周</MenuItem>
               <MenuItem value="month">最近一月</MenuItem>
-              <MenuItem value="year">最近一年</MenuItem>
               <MenuItem value="custom">自定义</MenuItem>
             </Select>
           </FormControl>
         </Box>
-      </Box>
-      
-      {/* Custom date range selector */}
-      {timeRange === 'custom' && (
-        <Box sx={{ mb: 3, display: 'flex', gap: 2 }}>
-          <TextField
-            label="开始日期"
-            type="date"
-            name="startDate"
-            value={customDateRange.startDate}
-            onChange={handleDateRangeChange}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
-          />
-          <TextField
-            label="结束日期"
-            type="date"
-            name="endDate"
-            value={customDateRange.endDate}
-            onChange={handleDateRangeChange}
-            InputLabelProps={{ shrink: true }}
-            fullWidth
-          />
-        </Box>
-      )}
-      
-      <Paper sx={{ mb: 3 }}>
-        <Tabs
-          value={tabValue}
-          onChange={handleTabChange}
-          variant="fullWidth"
-          aria-label="health analysis tabs"
-        >
-          <Tab icon={<EqualizerIcon />} label="营养摄入" />
-          <Tab icon={<ShowChartIcon />} label="食品统计" />
-        </Tabs>
-      </Paper>
-      
-      {/* Nutrition Tab */}
-      <TabPanel value={tabValue} index={0}>
-        <Grid 
-          container 
-          spacing={{ xs: 2, sm: 3 }} 
-          sx={{ 
+        
+        {timeRange === 'custom' && (
+          <Box sx={{ 
             width: '100%',
-            margin: '0 !important',
-            padding: '0 !important'
+            maxWidth: { xs: '100%', sm: '600px' },
+            display: 'flex',
+            justifyContent: 'space-between',
+            mb: 3,
+            px: { xs: 2, sm: 0 }
+          }}>
+            <TextField
+              label="开始日期"
+              type="date"
+              value={customDateRange.startDate}
+              onChange={(e) => handleDateRangeChange(e)}
+              InputLabelProps={{ shrink: true }}
+              sx={{ width: '48%' }}
+            />
+            <TextField
+              label="结束日期"
+              type="date"
+              value={customDateRange.endDate}
+              onChange={(e) => handleDateRangeChange(e)}
+              InputLabelProps={{ shrink: true }}
+              sx={{ width: '48%' }}
+            />
+          </Box>
+        )}
+        
+        <Box sx={{ 
+          width: '100%',
+          maxWidth: { xs: '100%', sm: '600px' },
+          mb: 3
+        }}>
+          <Paper sx={{ width: '100%' }}>
+            <Tabs
+              value={tabValue}
+              onChange={handleTabChange}
+              variant="fullWidth"
+              indicatorColor="primary"
+              textColor="primary"
+            >
+              <Tab label="营养摄入" />
+              <Tab label="食品统计" />
+            </Tabs>
+          </Paper>
+        </Box>
+        
+        {/* Nutrition Tab */}
+        <Box 
+          sx={{ 
+            display: tabValue === 0 ? 'flex' : 'none',
+            flexDirection: 'column',
+            alignItems: 'center',
+            width: '100%'
           }}
         >
           {/* 日均营养摄入 */}
-          <Grid item xs={12} sx={{ padding: { xs: '0 !important' } }}>
+          <Box sx={{ 
+            width: '100%', 
+            maxWidth: { xs: '100%', sm: '600px' }
+          }}>
             <Card sx={{ 
               width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: { xs: 0, sm: 1 }
+              borderRadius: { xs: 0, sm: 1 },
+              boxShadow: { xs: 'none', sm: 1 },
+              mb: { xs: 0, sm: 3 }
             }}>
               <CardHeader title="日均营养摄入" />
               <CardContent>
@@ -333,34 +367,39 @@ const HealthPage = observer(() => {
                 </Grid>
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
           
           {/* 营养摄入趋势 */}
-          <Grid item xs={12} sx={{ padding: { xs: '0 !important' } }}>
+          <Box sx={{ 
+            width: '100%', 
+            maxWidth: { xs: '100%', sm: '600px' }
+          }}>
             <Card sx={{ 
               width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: { xs: 0, sm: 1 }
+              borderRadius: { xs: 0, sm: 1 },
+              boxShadow: { xs: 'none', sm: 1 },
+              mb: { xs: 0, sm: 3 }
             }}>
               <CardHeader title="营养摄入趋势" />
               <CardContent sx={{ width: '100%' }}>
                 {healthStore.nutritionTrends && renderNutritionTrend()}
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
           
           {/* 维生素摄入 */}
-          <Grid item xs={12} sx={{ padding: { xs: '0 !important' } }}>
+          <Box sx={{ 
+            width: '100%', 
+            maxWidth: { xs: '100%', sm: '600px' }
+          }}>
             <Card sx={{ 
               width: '100%',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: { xs: 0, sm: 1 }
+              borderRadius: { xs: 0, sm: 1 },
+              boxShadow: { xs: 'none', sm: 1 },
+              mb: { xs: 0, sm: 3 }
             }}>
               <CardHeader title="维生素摄入" />
-              <CardContent sx={{ width: '100%', flex: 1 }}>
+              <CardContent sx={{ width: '100%' }}>
                 {healthStore.vitaminIntake && healthStore.vitaminIntake.map((vitamin) => (
                   <NutrientBar
                     key={vitamin.name}
@@ -372,19 +411,21 @@ const HealthPage = observer(() => {
                 ))}
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
           
           {/* 矿物质摄入 */}
-          <Grid item xs={12} sx={{ padding: { xs: '0 !important' } }}>
+          <Box sx={{ 
+            width: '100%', 
+            maxWidth: { xs: '100%', sm: '600px' }
+          }}>
             <Card sx={{ 
               width: '100%',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: { xs: 0, sm: 1 }
+              borderRadius: { xs: 0, sm: 1 },
+              boxShadow: { xs: 'none', sm: 1 },
+              mb: { xs: 0, sm: 3 }
             }}>
               <CardHeader title="矿物质摄入" />
-              <CardContent sx={{ width: '100%', flex: 1 }}>
+              <CardContent sx={{ width: '100%' }}>
                 {healthStore.mineralIntake && healthStore.mineralIntake.map((mineral) => (
                   <NutrientBar
                     key={mineral.name}
@@ -396,28 +437,28 @@ const HealthPage = observer(() => {
                 ))}
               </CardContent>
             </Card>
-          </Grid>
-        </Grid>
-      </TabPanel>
-      
-      {/* Food Statistics Tab */}
-      <TabPanel value={tabValue} index={1}>
-        <Grid 
-          container 
-          spacing={{ xs: 2, sm: 3 }}
+          </Box>
+        </Box>
+        
+        {/* Food Statistics Tab */}
+        <Box 
           sx={{ 
-            width: '100%',
-            margin: '0 !important',
-            padding: '0 !important'
+            display: tabValue === 1 ? 'flex' : 'none',
+            flexDirection: 'column',
+            alignItems: 'center',
+            width: '100%'
           }}
         >
           {/* 饮食结构分析 */}
-          <Grid item xs={12} sx={{ padding: { xs: '0 !important' } }}>
+          <Box sx={{ 
+            width: '100%', 
+            maxWidth: { xs: '100%', sm: '600px' }
+          }}>
             <Card sx={{ 
               width: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              borderRadius: { xs: 0, sm: 1 }
+              borderRadius: { xs: 0, sm: 1 },
+              boxShadow: { xs: 'none', sm: 1 },
+              mb: { xs: 0, sm: 3 }
             }}>
               <CardHeader title="饮食结构分析" />
               <CardContent sx={{ width: '100%', overflow: 'hidden' }}>
@@ -491,42 +532,56 @@ const HealthPage = observer(() => {
                 </Grid>
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
           
-          <Grid item xs={12}>
+          {/* 食材多样性分析 */}
+          <Box sx={{ 
+            width: '100%', 
+            maxWidth: { xs: '100%', sm: '600px' }
+          }}>
             <Card sx={{ 
               width: '100%',
-              display: 'flex',
-              flexDirection: 'column'
+              borderRadius: { xs: 0, sm: 1 },
+              boxShadow: { xs: 'none', sm: 1 },
+              mb: { xs: 0, sm: 3 }
             }}>
-              <CardHeader title="食材多样性" />
+              <CardHeader title="食材多样性分析" />
               <CardContent sx={{ width: '100%' }}>
                 <Grid container spacing={2}>
                   {healthStore.ingredientDiversity && Object.entries(healthStore.ingredientDiversity).map(([key, data]) => (
                     <Grid item xs={12} sm={6} md={3} key={key}>
                       <Box sx={{ 
-                        width: '100%',
-                        textAlign: 'center', 
-                        p: 2 
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center'
                       }}>
-                        <Typography variant="h4" color="primary">
-                          {data.count}/{data.target}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body1" sx={{ mb: 1 }}>
                           {data.description}
                         </Typography>
-                        <Box sx={{ mt: 1, position: 'relative', height: 4, bgcolor: 'grey.200', borderRadius: 2 }}>
+                        <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                          <CircularProgress
+                            variant="determinate"
+                            value={(data.count / data.target) * 100}
+                            size={80}
+                            thickness={4}
+                            sx={{ color: 'success.main' }}
+                          />
                           <Box
                             sx={{
-                              position: 'absolute',
-                              left: 0,
                               top: 0,
-                              height: '100%',
-                              borderRadius: 2,
-                              width: `${(data.count / data.target) * 100}%`,
-                              bgcolor: 'primary.main',
+                              left: 0,
+                              bottom: 0,
+                              right: 0,
+                              position: 'absolute',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
                             }}
-                          />
+                          >
+                            <Typography variant="caption" component="div" color="text.secondary">
+                              {`${data.count}/${data.target}`}
+                            </Typography>
+                          </Box>
                         </Box>
                       </Box>
                     </Grid>
@@ -534,13 +589,18 @@ const HealthPage = observer(() => {
                 </Grid>
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
           
-          <Grid item xs={12}>
+          {/* 营养建议 */}
+          <Box sx={{ 
+            width: '100%', 
+            maxWidth: { xs: '100%', sm: '600px' }
+          }}>
             <Card sx={{ 
               width: '100%',
-              display: 'flex',
-              flexDirection: 'column'
+              borderRadius: { xs: 0, sm: 1 },
+              boxShadow: { xs: 'none', sm: 1 },
+              mb: { xs: 0, sm: 3 }
             }}>
               <CardHeader title="营养建议" />
               <CardContent sx={{ width: '100%' }}>
@@ -550,9 +610,16 @@ const HealthPage = observer(() => {
                       <Typography variant="subtitle1" gutterBottom>
                         {section.category}
                       </Typography>
-                      <List dense>
+                      <List>
                         {section.items.map((item, index) => (
-                          <ListItem key={index}>
+                          <ListItem key={index} sx={{ py: 0.5 }}>
+                            <ListItemIcon sx={{ minWidth: 36 }}>
+                              {section.category === '主要发现' ? (
+                                <AssessmentIcon color="primary" fontSize="small" />
+                              ) : (
+                                <LightbulbIcon color="secondary" fontSize="small" />
+                              )}
+                            </ListItemIcon>
                             <ListItemText primary={item} />
                           </ListItem>
                         ))}
@@ -562,15 +629,20 @@ const HealthPage = observer(() => {
                 </Grid>
               </CardContent>
             </Card>
-          </Grid>
+          </Box>
           
-          <Grid item xs={12}>
+          {/* 常用食材分析 */}
+          <Box sx={{ 
+            width: '100%', 
+            maxWidth: { xs: '100%', sm: '600px' }
+          }}>
             <Card sx={{ 
               width: '100%',
-              display: 'flex',
-              flexDirection: 'column'
+              borderRadius: { xs: 0, sm: 1 },
+              boxShadow: { xs: 'none', sm: 1 },
+              mb: { xs: 0, sm: 3 }
             }}>
-              <CardHeader title="食材使用分析" />
+              <CardHeader title="常用食材分析" />
               <CardContent sx={{ width: '100%' }}>
                 <Grid container spacing={3}>
                   {healthStore.ingredientUsage && healthStore.ingredientUsage.map((category) => (
@@ -578,12 +650,18 @@ const HealthPage = observer(() => {
                       <Typography variant="subtitle1" gutterBottom>
                         {category.category}
                       </Typography>
-                      <List dense>
-                        {category.items.map((item) => (
-                          <ListItem key={item.name}>
+                      <List sx={{ pl: 0 }}>
+                        {category.items.map((item, index) => (
+                          <ListItem 
+                            key={index} 
+                            sx={{ 
+                              py: 0.5,
+                              borderBottom: index < category.items.length - 1 ? '1px solid rgba(0, 0, 0, 0.12)' : 'none'
+                            }}
+                          >
                             <ListItemText 
-                              primary={item.name}
-                              secondary={`使用 ${item.frequency} 次`}
+                              primary={item.name} 
+                              secondary={`使用频率: ${item.frequency}次`} 
                             />
                           </ListItem>
                         ))}
@@ -593,26 +671,26 @@ const HealthPage = observer(() => {
                 </Grid>
               </CardContent>
             </Card>
-          </Grid>
-        </Grid>
-      </TabPanel>
-      
-      {healthStore.loading && (
-        <Box sx={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: 'rgba(255, 255, 255, 0.7)',
-          zIndex: 1000,
-        }}>
-          <CircularProgress />
+          </Box>
         </Box>
-      )}
+        
+        {healthStore.loading && (
+          <Box sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(255, 255, 255, 0.7)',
+            zIndex: 1000,
+          }}>
+            <CircularProgress />
+          </Box>
+        )}
+      </Container>
     </Box>
   );
 });

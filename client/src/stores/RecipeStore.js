@@ -117,7 +117,9 @@ class RecipeStore {
       this.loading = true;
     });
     try {
-      await api.post('/recipes', recipeData);
+      // 确保不使用imageUrl，使服务器端使用默认值
+      const { imageUrl: _, ...dataWithoutImage } = recipeData;
+      await api.post('/recipes', dataWithoutImage);
       await this.fetchPersonalRecipes();
       runInAction(() => {
         this.error = null;

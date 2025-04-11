@@ -7,6 +7,9 @@ const healthRoutes = require('./health/health.routes');
 const app = express();
 const port = 3001;
 
+// Serve static files from the public directory
+app.use('/assets', express.static('public/assets'));
+
 // Request logging middleware (place it first to log all requests)
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
@@ -95,13 +98,19 @@ apiRouter.get('/recipes', (req, res) => {
   });
 });
 
+apiRouter.post('/recipes', (req, res) => {
+  const recipeData = req.body;
+  console.log('Creating recipe:', recipeData);
+  res.json({ success: true, message: 'Recipe created successfully' });
+});
+
 apiRouter.get('/recipes/recommended', (req, res) => {
   res.json([
     {
       id: 1,
       name: '番茄炒蛋',
       cookingTime: 15,
-      imageUrl: 'https://example.com/tomato-egg.jpg',
+      imageUrl: '/assets/food-placeholder.svg',
       cuisineId: 1, // 川菜
       mealType: 'breakfast',
       spiceLevel: 0,
@@ -110,7 +119,7 @@ apiRouter.get('/recipes/recommended', (req, res) => {
       id: 2,
       name: '红烧肉',
       cookingTime: 60,
-      imageUrl: 'https://example.com/braised-pork.jpg',
+      imageUrl: '/assets/food-placeholder.svg',
       cuisineId: 2, // 粤菜
       mealType: 'lunch',
       spiceLevel: 1,
@@ -119,7 +128,7 @@ apiRouter.get('/recipes/recommended', (req, res) => {
       id: 3,
       name: '清蒸鱼',
       cookingTime: 30,
-      imageUrl: 'https://example.com/steamed-fish.jpg',
+      imageUrl: '/assets/food-placeholder.svg',
       cuisineId: 2, // 粤菜
       mealType: 'dinner',
       spiceLevel: 0,
@@ -128,7 +137,7 @@ apiRouter.get('/recipes/recommended', (req, res) => {
       id: 4,
       name: '麻婆豆腐',
       cookingTime: 25,
-      imageUrl: 'https://example.com/mapo-tofu.jpg',
+      imageUrl: '/assets/food-placeholder.svg',
       cuisineId: 1, // 川菜
       mealType: 'lunch',
       spiceLevel: 3,
@@ -137,7 +146,7 @@ apiRouter.get('/recipes/recommended', (req, res) => {
       id: 5,
       name: '小笼包',
       cookingTime: 45,
-      imageUrl: 'https://example.com/xiaolongbao.jpg',
+      imageUrl: '/assets/food-placeholder.svg',
       cuisineId: 8, // 江苏菜
       mealType: 'breakfast',
       spiceLevel: 0,
@@ -146,7 +155,7 @@ apiRouter.get('/recipes/recommended', (req, res) => {
       id: 6,
       name: '宫保鸡丁',
       cookingTime: 30,
-      imageUrl: 'https://example.com/kungpao-chicken.jpg',
+      imageUrl: '/assets/food-placeholder.svg',
       cuisineId: 1, // 川菜
       mealType: 'dinner',
       spiceLevel: 2,
@@ -160,7 +169,7 @@ apiRouter.get('/recipes/personal', (req, res) => {
       id: 7,
       name: '自创炒饭',
       cookingTime: 20,
-      imageUrl: 'https://example.com/fried-rice.jpg',
+      imageUrl: '/assets/food-placeholder.svg',
       cuisineId: 8, // 江苏菜
       mealType: 'lunch',
       spiceLevel: 1,
@@ -169,7 +178,7 @@ apiRouter.get('/recipes/personal', (req, res) => {
       id: 8,
       name: '家常豆腐',
       cookingTime: 25,
-      imageUrl: 'https://example.com/tofu.jpg',
+      imageUrl: '/assets/food-placeholder.svg',
       cuisineId: 4, // 湘菜
       mealType: 'dinner',
       spiceLevel: 2,
@@ -183,7 +192,7 @@ apiRouter.get('/recipes/favorite', (req, res) => {
       id: 1,
       name: '番茄炒蛋',
       cookingTime: 15,
-      imageUrl: 'https://example.com/tomato-egg.jpg',
+      imageUrl: '/assets/food-placeholder.svg',
       cuisineId: 1, // 川菜
       mealType: 'breakfast',
       spiceLevel: 0,
@@ -192,7 +201,7 @@ apiRouter.get('/recipes/favorite', (req, res) => {
       id: 3,
       name: '清蒸鱼',
       cookingTime: 30,
-      imageUrl: 'https://example.com/steamed-fish.jpg',
+      imageUrl: '/assets/food-placeholder.svg',
       cuisineId: 2, // 粤菜
       mealType: 'dinner',
       spiceLevel: 0,
@@ -201,7 +210,7 @@ apiRouter.get('/recipes/favorite', (req, res) => {
       id: 6,
       name: '宫保鸡丁',
       cookingTime: 30,
-      imageUrl: 'https://example.com/kungpao-chicken.jpg',
+      imageUrl: '/assets/food-placeholder.svg',
       cuisineId: 1, // 川菜
       mealType: 'dinner',
       spiceLevel: 2,
@@ -224,13 +233,13 @@ apiRouter.get('/recipes/search', (req, res) => {
       id: 1,
       name: '番茄炒蛋',
       cookingTime: 15,
-      imageUrl: 'https://example.com/tomato-egg.jpg',
+      imageUrl: '/assets/food-placeholder.svg',
     },
     {
       id: 6,
       name: '西红柿汤',
       cookingTime: 25,
-      imageUrl: 'https://example.com/tomato-soup.jpg',
+      imageUrl: '/assets/food-placeholder.svg',
     },
   ]);
 });

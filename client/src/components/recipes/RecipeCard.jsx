@@ -24,6 +24,7 @@ import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import AddIcon from '@mui/icons-material/Add';
 import { observer } from 'mobx-react-lite';
 import { recipeStore, mealPlanStore } from '../../stores/RootStore';
+import foodPlaceholder from '../../assets/food-placeholder.svg';
 
 const RecipeCard = observer(({ recipe }) => {
   const [isFavorite, setIsFavorite] = useState(recipe.isFavorite || false);
@@ -84,7 +85,7 @@ const RecipeCard = observer(({ recipe }) => {
         <CardMedia
           component="img"
           height="140"
-          image={recipe.imageUrl || 'https://via.placeholder.com/300x140?text=No+Image'}
+          image={foodPlaceholder}
           alt={recipe.name}
         />
         <CardContent sx={{ flexGrow: 1 }}>
