@@ -88,6 +88,7 @@ class UserStore {
       });
       return true;
     } catch (error) {
+      console.log(error);
       localStorage.removeItem('token');
       runInAction(() => {
         this.isAuthenticated = false;

@@ -5,8 +5,6 @@ import {
   Typography,
   Paper,
   Grid,
-  Button,
-  ButtonGroup,
   Select,
   MenuItem,
   FormControl,
@@ -15,7 +13,6 @@ import {
   Card,
   CardContent,
   CardHeader,
-  Divider,
   List,
   ListItem,
   ListItemText,
@@ -26,10 +23,6 @@ import {
   ListItemIcon
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import TodayIcon from '@mui/icons-material/Today';
-import DateRangeIcon from '@mui/icons-material/DateRange';
-import EqualizerIcon from '@mui/icons-material/Equalizer';
-import ShowChartIcon from '@mui/icons-material/ShowChart';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 
@@ -37,29 +30,6 @@ import LightbulbIcon from '@mui/icons-material/Lightbulb';
 // For simplicity, we'll use the basic TextField with type="date"
 
 import { healthStore } from '../stores/RootStore';
-
-// Tab Panel Component
-function TabPanel({ children, value, index, ...other }) {
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`health-tabpanel-${index}`}
-      aria-labelledby={`health-tab-${index}`}
-      {...other}
-      style={{ width: '100%' }}
-    >
-      {value === index && (
-        <Box sx={{ 
-          width: '100%',
-          p: 0 // 移除内边距
-        }}>
-          {children}
-        </Box>
-      )}
-    </div>
-  );
-}
 
 // Placeholder for charts - in a real app you would use a charting library
 // like Chart.js, Recharts, or nivo
@@ -278,6 +248,7 @@ const HealthPage = observer(() => {
             <TextField
               label="开始日期"
               type="date"
+              name="startDate"
               value={customDateRange.startDate}
               onChange={(e) => handleDateRangeChange(e)}
               InputLabelProps={{ shrink: true }}
@@ -286,6 +257,7 @@ const HealthPage = observer(() => {
             <TextField
               label="结束日期"
               type="date"
+              name="endDate"
               value={customDateRange.endDate}
               onChange={(e) => handleDateRangeChange(e)}
               InputLabelProps={{ shrink: true }}

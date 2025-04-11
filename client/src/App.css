@@ -32,35 +32,3 @@ body {
     display: none !important;
   }
 }
-
-/* 移除不需要的样式 */
-.logo, .logo:hover, .logo.react:hover {
-  display: none;
-}
-
-/* 移除不需要的动画 */
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* 移除不需要的媒体查询 */
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: none;
-  }
-}
-
-/* 移除不需要的卡片样式 */
-.card {
-  padding: 0;
-}
-
-/* 移除不需要的文档样式 */
-.read-the-docs {
-  display: none;
-}
