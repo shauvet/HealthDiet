@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { observer } from 'mobx-react-lite';
 import {
   Box,
@@ -39,6 +39,7 @@ const MealPlanPage = observer(() => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [mealIngredientStatus, setMealIngredientStatus] = useState({});
+  const todayCardRef = useRef(null);
   
   // Date range for weekly view
   const [dateRange, setDateRange] = useState(() => {
@@ -74,6 +75,18 @@ const MealPlanPage = observer(() => {
   useEffect(() => {
     fetchMeals();
   }, [fetchMeals]);
+  
+  // Auto-scroll to today's menu when data is loaded
+  useEffect(() => {
+    if (!loading && todayCardRef.current) {
+      setTimeout(() => {
+        todayCardRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }, 300); // Short delay to ensure all elements are properly rendered
+    }
+  }, [loading]);
   
   const formatDate = (dateString) => {
     const date = new Date(dateString);
@@ -309,6 +322,7 @@ const MealPlanPage = observer(() => {
                   md: '33.333%'
                 }
               }}
+              ref={isToday(date) ? todayCardRef : null}
             >
               <Card 
                 elevation={isToday(date) ? 3 : 1}
@@ -462,6 +476,67 @@ const MealPlanPage = observer(() => {
             </Grid>
           ))}
         </Grid>
+      )}
+      
+      {/* Bottom navigation controls */}
+      {!loading && (
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            mt: 4,
+            pt: 2,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+          }}
+        >
+          <Paper
+            elevation={2}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              borderRadius: 4,
+              px: 2,
+              py: 1,
+              backgroundColor: 'background.paper',
+            }}
+          >
+            <Button 
+              onClick={handlePreviousWeek}
+              startIcon={<ChevronLeftIcon />}
+              sx={{ mr: 1 }}
+              color="primary"
+              variant="text"
+            >
+              上一周
+            </Button>
+            
+            <Button 
+              variant="contained" 
+              color="primary"
+              onClick={handleCurrentWeek}
+              startIcon={<TodayIcon />}
+              sx={{ 
+                mx: 1,
+                px: 2,
+                boxShadow: dateRange.currentWeek ? 3 : 0
+              }}
+            >
+              本周
+            </Button>
+            
+            <Button 
+              onClick={handleNextWeek}
+              endIcon={<ChevronRightIcon />}
+              sx={{ ml: 1 }}
+              color="primary"
+              variant="text"
+            >
+              下一周
+            </Button>
+          </Paper>
+        </Box>
       )}
       
       {/* Confirmation Dialog */}
