@@ -119,8 +119,18 @@ class RecipeStore {
     try {
       // 确保不使用imageUrl，使服务器端使用默认值
       const { imageUrl: _, ...dataWithoutImage } = recipeData;
-      await api.post('/recipes', dataWithoutImage);
+      const response = await api.post('/recipes', dataWithoutImage);
+      
+      // 如果服务器返回了新创建的菜谱，立即添加到个人菜谱列表
+      if (response.data && response.data.recipe) {
+        runInAction(() => {
+          this.recipes.personal.push(response.data.recipe);
+        });
+      }
+      
+      // 无论如何，重新获取个人菜谱列表以确保数据最新
       await this.fetchPersonalRecipes();
+      
       runInAction(() => {
         this.error = null;
       });

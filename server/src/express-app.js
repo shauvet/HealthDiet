@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const mongoose = require('mongoose');
 const healthRoutes = require('./health/health.routes');
+const inventoryRoutes = require('./inventory/inventory.routes');
+const mealPlanRoutes = require('./meal-plans/meal-plan.routes');
+const recipeRoutes = require('./recipes/recipe.routes');
 
 // Create Express app
 const app = express();
@@ -31,6 +34,35 @@ app.use(express.urlencoded({ extended: true }));
 
 // API routes
 const apiRouter = express.Router();
+
+// 添加认证中间件函数
+const authenticateUser = (req, res, next) => {
+  // 从请求头获取 Authorization token
+  const authHeader = req.headers.authorization;
+
+  if (authHeader) {
+    const token = authHeader.split(' ')[1]; // Bearer TOKEN
+
+    // 实际项目中，这里应该验证 token
+    // 为了简化，我们只检查是否存在 token
+    if (token) {
+      // 这里应该解析 token 并获取用户 ID
+      // 将用户 ID 附加到请求对象
+      req.userId = '000000000000000000000001'; // 模拟用户 ID
+      next();
+    } else {
+      res.status(401).json({ error: 'Invalid token format' });
+    }
+  } else {
+    // 允许未授权访问，但不提供 userId
+    console.log('Unauthenticated request to:', req.originalUrl);
+    next();
+  }
+};
+
+// 应用认证中间件到API路由
+apiRouter.use(authenticateUser);
+
 app.use('/api', apiRouter);
 
 // Root API endpoint
@@ -98,10 +130,54 @@ apiRouter.get('/recipes', (req, res) => {
   });
 });
 
+// 模拟存储个人菜谱的数组
+let personalRecipes = [
+  {
+    id: 7,
+    name: '自创炒饭',
+    cookingTime: 20,
+    imageUrl: '/assets/food-placeholder.svg',
+    cuisineId: 8, // 江苏菜
+    mealType: 'lunch',
+    spiceLevel: 1,
+  },
+  {
+    id: 8,
+    name: '家常豆腐',
+    cookingTime: 25,
+    imageUrl: '/assets/food-placeholder.svg',
+    cuisineId: 4, // 湘菜
+    mealType: 'dinner',
+    spiceLevel: 2,
+  },
+];
+
 apiRouter.post('/recipes', (req, res) => {
   const recipeData = req.body;
   console.log('Creating recipe:', recipeData);
-  res.json({ success: true, message: 'Recipe created successfully' });
+
+  // 创建新的菜谱记录
+  const newRecipe = {
+    id:
+      personalRecipes.length > 0
+        ? Math.max(...personalRecipes.map((r) => r.id)) + 1
+        : 1,
+    name: recipeData.name,
+    cookingTime: recipeData.cookingTime || 30,
+    imageUrl: '/assets/food-placeholder.svg',
+    cuisineId: recipeData.cuisine || 1,
+    mealType: recipeData.mealType || 'dinner',
+    spiceLevel: recipeData.spiceLevel || 0,
+  };
+
+  // 将新菜谱添加到个人菜谱数组中
+  personalRecipes.push(newRecipe);
+
+  res.json({
+    success: true,
+    message: 'Recipe created successfully',
+    recipe: newRecipe,
+  });
 });
 
 apiRouter.get('/recipes/recommended', (req, res) => {
@@ -164,26 +240,7 @@ apiRouter.get('/recipes/recommended', (req, res) => {
 });
 
 apiRouter.get('/recipes/personal', (req, res) => {
-  res.json([
-    {
-      id: 7,
-      name: '自创炒饭',
-      cookingTime: 20,
-      imageUrl: '/assets/food-placeholder.svg',
-      cuisineId: 8, // 江苏菜
-      mealType: 'lunch',
-      spiceLevel: 1,
-    },
-    {
-      id: 8,
-      name: '家常豆腐',
-      cookingTime: 25,
-      imageUrl: '/assets/food-placeholder.svg',
-      cuisineId: 4, // 湘菜
-      mealType: 'dinner',
-      spiceLevel: 2,
-    },
-  ]);
+  res.json(personalRecipes);
 });
 
 apiRouter.get('/recipes/favorite', (req, res) => {
@@ -361,7 +418,16 @@ apiRouter.post('/mealplan/add', (req, res) => {
 });
 
 // 添加健康分析路由
-app.use('/api/health', healthRoutes);
+apiRouter.use('/health', healthRoutes);
+
+// 添加库存路由
+apiRouter.use('/inventory', inventoryRoutes);
+
+// 添加膳食计划路由
+apiRouter.use('/meal-plans', mealPlanRoutes);
+
+// 添加食谱路由
+apiRouter.use('/recipes', recipeRoutes);
 
 // Start server
 async function bootstrap() {

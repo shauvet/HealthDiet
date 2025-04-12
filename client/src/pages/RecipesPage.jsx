@@ -60,8 +60,25 @@ const RecipesPage = observer(() => {
     recipeStore.fetchFavoriteRecipes();
   }, []);
   
+  // 当对话框关闭时，刷新个人菜谱列表
+  useEffect(() => {
+    if (!isCreateDialogOpen) {
+      // 当创建菜谱对话框关闭后刷新数据
+      recipeStore.fetchPersonalRecipes();
+    }
+  }, [isCreateDialogOpen]);
+  
   const handleChangeTab = (event, newValue) => {
     setTabValue(newValue);
+    
+    // 当切换到个人菜谱或收藏菜谱标签时，刷新相应数据
+    if (newValue === 1) {
+      recipeStore.fetchPersonalRecipes();
+    } else if (newValue === 2) {
+      recipeStore.fetchFavoriteRecipes();
+    } else if (newValue === 0) {
+      recipeStore.fetchRecommendedRecipes();
+    }
   };
   
   const handleSearch = async () => {

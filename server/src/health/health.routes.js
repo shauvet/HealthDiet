@@ -20,4 +20,10 @@ router.get('/nutrition/minerals', HealthController.getMineralIntake);
 // 获取饮食结构数据
 router.get('/diet/structure', HealthController.getDietStructure);
 
+// 更新营养目标
+router.post('/nutrition/goals', HealthController.updateNutritionGoals);
+
+// 添加每日营养数据
+router.post('/nutrition/daily', HealthController.addDailyNutrition);
+
 module.exports = router;

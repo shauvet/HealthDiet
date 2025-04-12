@@ -5,7 +5,7 @@ class Recipe {
   static name = 'Recipe';
 }
 
-Prop({ required: true })(Recipe.prototype, 'name');
+Prop({ required: true, type: String })(Recipe.prototype, 'name');
 Prop({ type: String, default: '' })(Recipe.prototype, 'description');
 Prop({ type: String, default: '/assets/food-placeholder.svg' })(
   Recipe.prototype,

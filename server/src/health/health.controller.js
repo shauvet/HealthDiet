@@ -5,7 +5,12 @@ const HealthController = {
   async getAllHealthData(req, res) {
     try {
       const { timeRange, startDate, endDate } = req.query;
+      // 从请求中获取用户ID，实际项目中应从认证中间件获取
+      const userId =
+        req.userId || req.query.userId || '000000000000000000000001';
+
       const data = await HealthService.getAllHealthData(
+        userId,
         timeRange,
         startDate,
         endDate,
@@ -20,7 +25,11 @@ const HealthController = {
   // 获取日均营养摄入数据
   async getNutrientData(req, res) {
     try {
-      const data = HealthService.getNutrientData();
+      // 从请求中获取用户ID
+      const userId =
+        req.userId || req.query.userId || '000000000000000000000001';
+
+      const data = await HealthService.getNutrientData(userId);
       res.json(data);
     } catch (error) {
       console.error('Error getting nutrient data:', error);
@@ -31,7 +40,15 @@ const HealthController = {
   // 获取营养摄入趋势数据
   async getNutritionTrends(req, res) {
     try {
-      const data = HealthService.getNutritionTrends();
+      // 从请求中获取用户ID
+      const userId =
+        req.userId || req.query.userId || '000000000000000000000001';
+      const { days } = req.query;
+
+      const data = await HealthService.getNutritionTrends(
+        userId,
+        days ? parseInt(days) : 7,
+      );
       res.json(data);
     } catch (error) {
       console.error('Error getting nutrition trends:', error);
@@ -42,7 +59,11 @@ const HealthController = {
   // 获取维生素摄入数据
   async getVitaminIntake(req, res) {
     try {
-      const data = HealthService.getVitaminIntake();
+      // 从请求中获取用户ID
+      const userId =
+        req.userId || req.query.userId || '000000000000000000000001';
+
+      const data = await HealthService.getVitaminIntake(userId);
       res.json(data);
     } catch (error) {
       console.error('Error getting vitamin intake:', error);
@@ -53,7 +74,11 @@ const HealthController = {
   // 获取矿物质摄入数据
   async getMineralIntake(req, res) {
     try {
-      const data = HealthService.getMineralIntake();
+      // 从请求中获取用户ID
+      const userId =
+        req.userId || req.query.userId || '000000000000000000000001';
+
+      const data = await HealthService.getMineralIntake(userId);
       res.json(data);
     } catch (error) {
       console.error('Error getting mineral intake:', error);
@@ -64,11 +89,50 @@ const HealthController = {
   // 获取饮食结构数据
   async getDietStructure(req, res) {
     try {
-      const data = HealthService.getDietStructure();
+      // 从请求中获取用户ID
+      const userId =
+        req.userId || req.query.userId || '000000000000000000000001';
+
+      const data = await HealthService.getDietStructure(userId);
       res.json(data);
     } catch (error) {
       console.error('Error getting diet structure:', error);
       res.status(500).json({ error: 'Failed to get diet structure' });
+    }
+  },
+
+  // 更新营养目标
+  async updateNutritionGoals(req, res) {
+    try {
+      // 从请求中获取用户ID
+      const userId =
+        req.userId || req.query.userId || '000000000000000000000001';
+      const goalsData = req.body;
+
+      const updatedGoals = await HealthService.updateNutritionGoals(
+        userId,
+        goalsData,
+      );
+      res.json(updatedGoals);
+    } catch (error) {
+      console.error('Error updating nutrition goals:', error);
+      res.status(500).json({ error: 'Failed to update nutrition goals' });
+    }
+  },
+
+  // 添加每日营养数据
+  async addDailyNutrition(req, res) {
+    try {
+      // 从请求中获取用户ID
+      const userId =
+        req.userId || req.body.userId || '000000000000000000000001';
+      const nutritionData = { ...req.body, userId };
+
+      const savedData = await HealthService.addDailyNutrition(nutritionData);
+      res.json(savedData);
+    } catch (error) {
+      console.error('Error adding daily nutrition:', error);
+      res.status(500).json({ error: 'Failed to add daily nutrition' });
     }
   },
 };

@@ -21,8 +21,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { observer } from 'mobx-react-lite';
-import { recipeStore } from '../../stores/RootStore';
-import foodPlaceholder from '../../assets/food-placeholder.svg';
+import { recipeStore } from '../../stores/RootStore';     
 
 const initialIngredient = {
   name: '',
@@ -142,8 +141,12 @@ const CreateRecipeDialog = observer(({ open, onClose }) => {
     }
     
     try {
-      await recipeStore.createRecipe(recipe);
-      handleClose();
+      const success = await recipeStore.createRecipe(recipe);
+      if (success) {
+        // 强制刷新个人菜谱列表
+        await recipeStore.fetchPersonalRecipes();
+        handleClose();
+      }
     } catch (error) {
       console.error("Failed to create recipe:", error);
     }

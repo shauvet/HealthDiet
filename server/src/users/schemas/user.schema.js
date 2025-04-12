@@ -5,17 +5,20 @@ class User {
   static name = 'User';
 }
 
-Prop({ required: true })(User.prototype, 'name');
-Prop({ required: true, unique: true })(User.prototype, 'email');
-Prop({ required: true })(User.prototype, 'password');
-Prop()(User.prototype, 'phone');
-Prop({ enum: ['male', 'female', 'other'] })(User.prototype, 'gender');
-Prop()(User.prototype, 'height');
-Prop()(User.prototype, 'weight');
-Prop()(User.prototype, 'birthdate');
-Prop()(User.prototype, 'allergies');
-Prop()(User.prototype, 'dietaryRestrictions');
-Prop()(User.prototype, 'healthGoals');
+Prop({ required: true, type: String })(User.prototype, 'name');
+Prop({ required: true, unique: true, type: String })(User.prototype, 'email');
+Prop({ required: true, type: String })(User.prototype, 'password');
+Prop({ type: String })(User.prototype, 'phone');
+Prop({ enum: ['male', 'female', 'other'], type: String })(
+  User.prototype,
+  'gender',
+);
+Prop({ type: Number })(User.prototype, 'height');
+Prop({ type: Number })(User.prototype, 'weight');
+Prop({ type: Date })(User.prototype, 'birthdate');
+Prop({ type: [String] })(User.prototype, 'allergies');
+Prop({ type: [String] })(User.prototype, 'dietaryRestrictions');
+Prop({ type: [String] })(User.prototype, 'healthGoals');
 
 const UserSchema = SchemaFactory.createForClass(User);
 UserSchema.set('timestamps', true);
@@ -24,15 +27,21 @@ class FamilyMember {
   static name = 'FamilyMember';
 }
 
-Prop({ required: true })(FamilyMember.prototype, 'name');
-Prop({ required: true })(FamilyMember.prototype, 'relationship');
-Prop({ enum: ['male', 'female', 'other'] })(FamilyMember.prototype, 'gender');
-Prop()(FamilyMember.prototype, 'birthdate');
-Prop()(FamilyMember.prototype, 'height');
-Prop()(FamilyMember.prototype, 'weight');
-Prop()(FamilyMember.prototype, 'allergies');
-Prop()(FamilyMember.prototype, 'dietaryRestrictions');
-Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true })(FamilyMember.prototype, 'userId');
+Prop({ required: true, type: String })(FamilyMember.prototype, 'name');
+Prop({ required: true, type: String })(FamilyMember.prototype, 'relationship');
+Prop({ enum: ['male', 'female', 'other'], type: String })(
+  FamilyMember.prototype,
+  'gender',
+);
+Prop({ type: Date })(FamilyMember.prototype, 'birthdate');
+Prop({ type: Number })(FamilyMember.prototype, 'height');
+Prop({ type: Number })(FamilyMember.prototype, 'weight');
+Prop({ type: [String] })(FamilyMember.prototype, 'allergies');
+Prop({ type: [String] })(FamilyMember.prototype, 'dietaryRestrictions');
+Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true })(
+  FamilyMember.prototype,
+  'userId',
+);
 
 const FamilyMemberSchema = SchemaFactory.createForClass(FamilyMember);
 FamilyMemberSchema.set('timestamps', true);
@@ -45,5 +54,5 @@ module.exports = {
   User,
   UserSchema,
   FamilyMember,
-  FamilyMemberSchema
-}; 
+  FamilyMemberSchema,
+};
