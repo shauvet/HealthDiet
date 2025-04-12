@@ -204,6 +204,7 @@ const HealthPage = observer(() => {
         sx={{ 
           width: '100%',
           padding: 0,
+          paddingTop: 2,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center'

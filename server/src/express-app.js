@@ -382,20 +382,35 @@ apiRouter.get('/health/ingredients/:timeRange', (req, res) => {
 apiRouter.get('/meal-plans', (req, res) => {
   const { startDate, endDate } = req.query;
   console.log(`Fetching meal plans from ${startDate} to ${endDate}`);
-  res.json([
-    {
-      id: 1,
-      date: startDate || '2023-04-01',
-      mealType: 'breakfast',
-      recipe: { id: 1, name: '番茄炒蛋', cookingTime: 15 },
-    },
-    {
-      id: 2,
-      date: startDate || '2023-04-01',
-      mealType: 'dinner',
-      recipe: { id: 3, name: '清蒸鱼', cookingTime: 30 },
-    },
-  ]);
+
+  // 如果没有初始化存储，则初始化
+  if (!app.locals.mealPlans) {
+    app.locals.mealPlans = [
+      {
+        id: 1,
+        date: startDate || '2023-04-01',
+        mealType: 'breakfast',
+        recipe: { id: 1, name: '番茄炒蛋', cookingTime: 15 },
+      },
+      {
+        id: 2,
+        date: startDate || '2023-04-01',
+        mealType: 'dinner',
+        recipe: { id: 3, name: '清蒸鱼', cookingTime: 30 },
+      },
+    ];
+  }
+
+  // 根据日期范围筛选结果
+  let mealPlans = app.locals.mealPlans;
+
+  if (startDate && endDate) {
+    mealPlans = mealPlans.filter(
+      (meal) => meal.date >= startDate && meal.date <= endDate,
+    );
+  }
+
+  res.json(mealPlans);
 });
 
 // Add recipe to meal plan endpoint
@@ -404,17 +419,57 @@ apiRouter.post('/mealplan/add', (req, res) => {
   console.log(
     `Adding recipe ${recipeId} to meal plan for ${date} (${mealType})`,
   );
-  res.json({
+
+  // 查找对应的菜谱信息
+  let recipeName = '未知菜品';
+  let cookingTime = 30;
+
+  // 从推荐菜谱中查找
+  const recommendedRecipes = [
+    { id: 1, name: '番茄炒蛋', cookingTime: 15 },
+    { id: 2, name: '红烧肉', cookingTime: 60 },
+    { id: 3, name: '清蒸鱼', cookingTime: 30 },
+    { id: 4, name: '麻婆豆腐', cookingTime: 25 },
+    { id: 5, name: '小笼包', cookingTime: 45 },
+    { id: 6, name: '宫保鸡丁', cookingTime: 30 },
+  ];
+
+  // 从个人菜谱中查找
+  const personalRecipes = [
+    { id: 7, name: '自创炒饭', cookingTime: 20 },
+    { id: 8, name: '家常豆腐', cookingTime: 25 },
+    { id: 9, name: '东坡肉', cookingTime: 30 },
+  ];
+
+  // 查找对应菜谱
+  const allRecipes = [...recommendedRecipes, ...personalRecipes];
+  const recipe = allRecipes.find((r) => r.id === parseInt(recipeId));
+
+  if (recipe) {
+    recipeName = recipe.name;
+    cookingTime = recipe.cookingTime;
+  }
+
+  // 创建新添加的菜单项
+  const mealPlanItem = {
     id: Math.floor(Math.random() * 1000),
     date,
     mealType,
     servings: servings || 1,
     recipe: {
-      id: recipeId,
-      name: recipeId === 1 ? '番茄炒蛋' : recipeId === 2 ? '红烧肉' : '清蒸鱼',
-      cookingTime: recipeId === 1 ? 15 : recipeId === 2 ? 60 : 30,
+      id: parseInt(recipeId),
+      name: recipeName,
+      cookingTime: cookingTime,
     },
-  });
+  };
+
+  // 将新项目添加到内存中
+  if (!app.locals.mealPlans) {
+    app.locals.mealPlans = [];
+  }
+  app.locals.mealPlans.push(mealPlanItem);
+
+  res.json(mealPlanItem);
 });
 
 // 添加健康分析路由
