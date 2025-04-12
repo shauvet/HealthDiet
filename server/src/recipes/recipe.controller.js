@@ -160,18 +160,31 @@ const RecipeController = {
     try {
       // 从请求中获取用户ID
       const userId =
-        req.userId || req.body.userId || '000000000000000000000001';
+        req.userId || req.body?.userId || '000000000000000000000001';
       const { recipeId } = req.params;
-      const { notes } = req.body;
+      const notes = req.body?.notes || '';
 
-      const favorite = await RecipeService.favoriteRecipe(
+      console.log('Favoriting recipe with params:', {
+        userId,
+        recipeId,
+        notes,
+      });
+
+      // 调用服务层方法保存收藏记录到数据库
+      const result = await RecipeService.favoriteRecipe(
         userId,
         recipeId,
         notes,
       );
-      res.status(201).json(favorite);
+
+      return res.status(201).json({
+        success: true,
+        message: 'Recipe favorited successfully',
+        data: result,
+      });
     } catch (error) {
       console.error('Error favoriting recipe:', error);
+      console.error('Error stack:', error.stack);
       res.status(500).json({ error: 'Failed to favorite recipe' });
     }
   },

@@ -98,59 +98,123 @@ class RecipeRepository {
 
   // 收藏食谱
   async favoriteRecipe(userId, recipeId, notes = '') {
-    const favoriteData = {
-      userId,
-      recipeId,
-      notes,
-    };
+    try {
+      console.log(`尝试将食谱 ${recipeId} 添加到 ${userId} 的收藏中`);
 
-    // 使用upsert确保不会重复收藏
-    return await FavoriteRecipe.findOneAndUpdate(
-      { userId, recipeId },
-      favoriteData,
-      { upsert: true, new: true },
-    );
+      // 直接创建收藏记录，不做任何类型转换
+      const favorite = new FavoriteRecipe({
+        userId,
+        recipeId, // 直接使用传入的recipeId，无论它是字符串还是ObjectId
+        notes,
+        // 如果是数字ID，也记录在mockRecipeId字段
+        ...(!isNaN(parseInt(recipeId)) && { mockRecipeId: parseInt(recipeId) }),
+      });
+
+      // 保存收藏
+      return await favorite.save();
+    } catch (error) {
+      console.error('Error in favoriteRecipe:', error);
+      throw error;
+    }
   }
 
   // 取消收藏
   async unfavoriteRecipe(userId, recipeId) {
-    return await FavoriteRecipe.findOneAndDelete({ userId, recipeId });
+    try {
+      console.log(`尝试取消收藏食谱 ${recipeId}`);
+
+      // 直接查找并删除收藏记录
+      return await FavoriteRecipe.findOneAndDelete({
+        userId,
+        recipeId,
+      });
+    } catch (error) {
+      console.error('Error in unfavoriteRecipe:', error);
+      throw error;
+    }
   }
 
   // 获取用户收藏的食谱
   async getUserFavorites(userId) {
-    const favorites = await FavoriteRecipe.find({ userId })
-      .populate('recipeId')
-      .sort({ createdAt: -1 });
+    try {
+      console.log(`获取用户 ${userId} 的收藏食谱列表`);
 
-    // 转换为前端所需的格式
-    return favorites
-      .map((fav) => {
-        const recipe = fav.recipeId;
-        if (!recipe) return null; // 处理被删除的食谱
+      // 查询所有收藏记录
+      const favorites = await FavoriteRecipe.find({ userId }).sort({
+        createdAt: -1,
+      });
 
-        return {
-          id: recipe._id,
-          name: recipe.name,
-          cookingTime: recipe.cookingTime,
-          imageUrl: recipe.imageUrl,
-          cuisineId: recipe.cuisine,
-          mealType:
-            recipe.categories.find((c) =>
-              ['breakfast', 'lunch', 'dinner', 'snack'].includes(c),
-            ) || null,
-          spiceLevel: recipe.spiceLevel,
+      // 获取收藏食谱的详细信息
+      const result = [];
+      for (const fav of favorites) {
+        let recipeDetails = {
+          id: fav.recipeId,
           favoriteId: fav._id,
           notes: fav.notes,
+          createdAt: fav.createdAt,
+          // 默认信息，当找不到食谱详情时使用
+          name: '未知食谱',
+          cookingTime: 30,
+          imageUrl: '/assets/food-placeholder.svg',
+          spiceLevel: 0,
         };
-      })
-      .filter(Boolean); // 过滤掉null值
+
+        try {
+          // 对于非数字ID（即MongoDB ObjectId），尝试从Recipe集合获取详情
+          if (mongoose.Types.ObjectId.isValid(fav.recipeId)) {
+            const recipe = await Recipe.findById(fav.recipeId);
+            if (recipe) {
+              recipeDetails.name = recipe.name;
+              recipeDetails.cookingTime = recipe.cookingTime;
+              recipeDetails.imageUrl = recipe.imageUrl;
+              recipeDetails.spiceLevel = recipe.spiceLevel;
+            }
+          }
+          // 对于数字ID（模拟数据），尝试获取对应的模拟食谱数据
+          else if (fav.mockRecipeId) {
+            // 这里可以添加模拟数据的获取逻辑，或者维护一个基本的食谱名称映射
+            const mockRecipes = {
+              1: '番茄炒蛋',
+              2: '红烧肉',
+              3: '清蒸鱼',
+              4: '麻婆豆腐',
+              5: '小笼包',
+              6: '宫保鸡丁',
+            };
+            if (mockRecipes[fav.mockRecipeId]) {
+              recipeDetails.name = mockRecipes[fav.mockRecipeId];
+            }
+          }
+        } catch (err) {
+          console.error(`获取食谱 ${fav.recipeId} 详情失败:`, err);
+          // 继续使用默认值
+        }
+
+        result.push(recipeDetails);
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Error in getUserFavorites:', error);
+      return [];
+    }
   }
 
   // 检查用户是否已收藏食谱
   async isRecipeFavorited(userId, recipeId) {
-    const favorite = await FavoriteRecipe.findOne({ userId, recipeId });
-    return !!favorite;
+    try {
+      console.log(`检查用户 ${userId} 是否收藏了食谱 ${recipeId}`);
+
+      // 直接查找收藏记录
+      const favorite = await FavoriteRecipe.findOne({
+        userId,
+        recipeId,
+      });
+      return !!favorite;
+    } catch (error) {
+      console.error('Error in isRecipeFavorited:', error);
+      return false;
+    }
   }
 
   // 获取基于特定食材的食谱

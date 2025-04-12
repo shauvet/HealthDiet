@@ -27,7 +27,7 @@ import { recipeStore, mealPlanStore } from '../../stores/RootStore';
 import foodPlaceholder from '../../assets/food-placeholder.svg';
 
 const RecipeCard = observer(({ recipe }) => {
-  const [isFavorite, setIsFavorite] = useState(recipe.isFavorite || false);
+  const [isFavorite, setIsFavorite] = useState(recipe.favoriteId !== undefined || recipe.isFavorite || false);
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [mealPlanData, setMealPlanData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -41,7 +41,7 @@ const RecipeCard = observer(({ recipe }) => {
     
     // Call API to update server state
     try {
-      await recipeStore.toggleFavorite(recipe.id);
+      await recipeStore.toggleFavorite(recipe.id, isFavorite);
     } catch (error) {
       // Revert local state on error
       setIsFavorite(isFavorite);

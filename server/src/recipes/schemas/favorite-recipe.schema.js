@@ -6,7 +6,7 @@ class FavoriteRecipe {
 }
 
 Prop({
-  type: mongoose.Schema.Types.ObjectId,
+  type: mongoose.Schema.Types.Mixed,
   ref: 'Recipe',
   required: true,
 })(FavoriteRecipe.prototype, 'recipeId');
@@ -17,6 +17,9 @@ Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true })(
 );
 
 Prop({ type: String, default: '' })(FavoriteRecipe.prototype, 'notes');
+
+// 添加mockRecipeId字段，用于跟踪模拟菜谱的ID
+Prop({ type: Number })(FavoriteRecipe.prototype, 'mockRecipeId');
 
 // Apply Schema decorator
 Schema({ timestamps: true })(FavoriteRecipe);

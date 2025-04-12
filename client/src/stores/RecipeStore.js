@@ -64,7 +64,7 @@ class RecipeStore {
       this.loading = true;
     });
     try {
-      const response = await api.get('/recipes/favorite');
+      const response = await api.get('/recipes/favorites');
       runInAction(() => {
         this.recipes.favorite = response.data;
         this.error = null;
@@ -81,15 +81,23 @@ class RecipeStore {
   }
   
   // Toggle favorite status of a recipe
-  async toggleFavorite(recipeId) {
+  async toggleFavorite(recipeId, isFavorite) {
     try {
-      await api.post(`/recipes/${recipeId}/favorite`);
+      if (isFavorite) {
+        // 如果已收藏，则调用取消收藏接口
+        await api.delete(`/recipes/${recipeId}/favorite`);
+      } else {
+        // 如果未收藏，则调用添加收藏接口
+        await api.post(`/recipes/${recipeId}/favorite`);
+      }
+      // 更新收藏列表和推荐列表
       await this.fetchFavoriteRecipes();
       await this.fetchRecommendedRecipes();
     } catch (error) {
       runInAction(() => {
         this.error = error.message;
       });
+      throw error; // 重新抛出错误，以便调用者可以处理
     }
   }
   
