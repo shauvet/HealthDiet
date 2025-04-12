@@ -28,6 +28,24 @@ const FamilyMemberSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+// Create a direct Mongoose schema for User since NestJS decorators may be causing issues
+const UserSchemaMongoose = new mongoose.Schema(
+  {
+    name: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    phone: { type: String },
+    gender: { type: String, enum: ['male', 'female', 'other'] },
+    height: { type: Number },
+    weight: { type: Number },
+    birthdate: { type: Date },
+    allergies: { type: [String] },
+    dietaryRestrictions: { type: [String] },
+    healthGoals: { type: [String] },
+  },
+  { timestamps: true },
+);
+
 // Use NestJS style schema for User if needed
 class User {
   static name = 'User';
@@ -60,9 +78,21 @@ class FamilyMember {
 Schema({ timestamps: true })(User);
 Schema({ timestamps: true })(FamilyMember);
 
+// Log schema details for debugging
+console.log(
+  'User schema created. Paths:',
+  UserSchema ? Object.keys(UserSchema.paths || {}) : 'Schema not defined',
+);
+console.log(
+  'User mongoose schema created. Paths:',
+  UserSchemaMongoose
+    ? Object.keys(UserSchemaMongoose.paths || {})
+    : 'Schema not defined',
+);
+
 module.exports = {
   User,
-  UserSchema,
+  UserSchema: UserSchemaMongoose, // Use the Mongoose schema directly
   FamilyMember,
   FamilyMemberSchema,
 };

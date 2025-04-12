@@ -9,6 +9,7 @@ const mealPlanRoutes = require('./meal-plans/meal-plan.routes');
 const recipeRoutes = require('./recipes/recipe.routes');
 const RecipeRepository = require('./recipes/repositories/recipe.repository');
 const FamilyMemberRepository = require('./users/repositories/family-member.repository');
+const UserRepository = require('./users/repositories/user.repository');
 
 // Create Express app
 const app = express();
@@ -111,19 +112,59 @@ apiRouter.post('/auth/register', (req, res) => {
 });
 
 // User routes
-apiRouter.get('/users/profile', (req, res) => {
-  res.json({ id: 1, email: 'user@example.com', name: 'Test User' });
+apiRouter.get('/users/profile', async (req, res) => {
+  try {
+    const userId = req.userId || '000000000000000000000001';
+    console.log('获取用户资料，用户ID:', userId);
+
+    // 验证UserRepository是否可用
+    if (
+      !UserRepository ||
+      typeof UserRepository.getUserProfile !== 'function'
+    ) {
+      console.error('UserRepository未正确加载');
+      return res.status(500).json({ error: '系统错误：存储库未加载' });
+    }
+
+    const userProfile = await UserRepository.getUserProfile(userId);
+    console.log('用户资料获取成功:', userProfile);
+
+    res.json(userProfile);
+  } catch (error) {
+    console.error('获取用户资料出错:', error);
+    console.error('错误堆栈:', error.stack);
+    res.status(500).json({ error: '获取用户资料失败: ' + error.message });
+  }
 });
 
-apiRouter.patch('/users/profile', (req, res) => {
-  const userData = req.body;
-  console.log('Updating user profile:', userData);
-  res.json({
-    id: 1,
-    email: userData.email || 'user@example.com',
-    name: userData.name || 'Test User',
-    ...userData,
-  });
+apiRouter.patch('/users/profile', async (req, res) => {
+  try {
+    const userId = req.userId || '000000000000000000000001';
+    const userData = req.body;
+    console.log('更新用户资料，用户ID:', userId);
+    console.log('用户资料数据:', userData);
+
+    // 验证UserRepository是否可用
+    if (
+      !UserRepository ||
+      typeof UserRepository.updateUserProfile !== 'function'
+    ) {
+      console.error('UserRepository未正确加载');
+      return res.status(500).json({ error: '系统错误：存储库未加载' });
+    }
+
+    const updatedProfile = await UserRepository.updateUserProfile(
+      userId,
+      userData,
+    );
+    console.log('用户资料更新成功:', updatedProfile);
+
+    res.json(updatedProfile);
+  } catch (error) {
+    console.error('更新用户资料出错:', error);
+    console.error('错误堆栈:', error.stack);
+    res.status(500).json({ error: '更新用户资料失败: ' + error.message });
+  }
 });
 
 // Family member routes
@@ -768,6 +809,25 @@ try {
 } catch (error) {
   console.error('加载RecipeRepository时出错:', error);
 }
+
+// Add a route to delete a test user
+apiRouter.delete('/users/profile/test', async (req, res) => {
+  try {
+    const userId = req.userId || '000000000000000000000001';
+    console.log('删除测试用户，用户ID:', userId);
+
+    // 删除用户
+    const result = await mongoose.connection
+      .collection('users')
+      .deleteOne({ _id: new mongoose.Types.ObjectId(userId) });
+    console.log('删除结果:', result);
+
+    res.json({ success: true, message: '测试用户已删除' });
+  } catch (error) {
+    console.error('删除测试用户出错:', error);
+    res.status(500).json({ error: '删除测试用户失败: ' + error.message });
+  }
+});
 
 // Start server
 async function bootstrap() {
