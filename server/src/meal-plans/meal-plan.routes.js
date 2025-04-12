@@ -9,6 +9,10 @@ router.get('/date/:date', MealPlanController.getDailyMealPlan);
 router.get('/most-frequent', MealPlanController.getMostFrequentRecipes);
 router.get('/distribution', MealPlanController.getMealTypeDistribution);
 router.get('/:id', MealPlanController.getMealPlanById);
+router.get(
+  '/:id/ingredients/check',
+  MealPlanController.checkIngredientAvailability,
+);
 
 // 添加和修改膳食计划
 router.post('/', MealPlanController.addMealPlan);

@@ -222,6 +222,27 @@ const MealPlanController = {
       res.status(500).json({ error: 'Failed to get current week meal plans' });
     }
   },
+
+  // 检查膳食计划所需配料的库存情况
+  async checkIngredientAvailability(req, res) {
+    try {
+      const { id } = req.params;
+      // 从请求中获取用户ID
+      const userId =
+        req.userId || req.query.userId || '000000000000000000000001';
+
+      const result = await MealPlanService.checkIngredientAvailability(
+        userId,
+        id,
+      );
+      res.json(result);
+    } catch (error) {
+      console.error('Error checking ingredient availability:', error);
+      res
+        .status(500)
+        .json({ error: 'Failed to check ingredient availability' });
+    }
+  },
 };
 
 module.exports = MealPlanController;

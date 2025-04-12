@@ -23,14 +23,16 @@ import {
   DialogActions,
   Chip,
   CircularProgress,
-  Alert
+  Alert,
+  Tooltip
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import TodayIcon from '@mui/icons-material/Today';
 import InventoryIcon from '@mui/icons-material/Inventory';
-import { mealPlanStore } from '../stores/RootStore';
+import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import { mealPlanStore, inventoryStore } from '../stores/RootStore';
 
 const MealPlanPage = observer(() => {
   const [selectedMeals, setSelectedMeals] = useState([]);
@@ -80,10 +82,12 @@ const MealPlanPage = observer(() => {
   useEffect(() => {
     if (!loading && todayCardRef.current) {
       setTimeout(() => {
-        todayCardRef.current.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        });
+        if (todayCardRef.current) {
+          todayCardRef.current.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+        }
       }, 300); // Short delay to ensure all elements are properly rendered
     }
   }, [loading]);
@@ -206,13 +210,29 @@ const MealPlanPage = observer(() => {
   
   const handleCheckIngredients = async (mealId) => {
     try {
-      const status = await mealPlanStore.checkIngredientStatus(mealId);
+      const status = await mealPlanStore.checkIngredientAvailability(mealId);
       setMealIngredientStatus({
         ...mealIngredientStatus,
         [mealId]: status
       });
     } catch (error) {
       console.error('Failed to check ingredients:', error);
+    }
+  };
+  
+  const handleAddToShoppingList = async (mealId) => {
+    setLoading(true);
+    try {
+      await mealPlanStore.addOutOfStockToShoppingList(mealId);
+      // Refresh the shopping list data
+      await inventoryStore.fetchShoppingList();
+      setSuccess('已成功添加缺少的食材到采购清单');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error) {
+      setError('添加到采购清单失败，请稍后重试');
+      console.error('Failed to add to shopping list:', error);
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -454,15 +474,29 @@ const MealPlanPage = observer(() => {
                                     </Typography>
                                   }
                                 />
-                                <ListItemSecondaryAction>
-                                  <IconButton 
-                                    edge="end" 
-                                    onClick={() => handleCheckIngredients(meal.id)}
-                                    color={getMealStatus(meal)}
-                                    size="small"
-                                  >
-                                    <InventoryIcon fontSize="small" />
-                                  </IconButton>
+                                <ListItemSecondaryAction sx={{ display: 'flex', alignItems: 'center' }}>
+                                  {mealIngredientStatus[meal.id] && mealIngredientStatus[meal.id].outOfStock.length > 0 && (
+                                    <Tooltip title="添加缺少的食材到采购清单">
+                                      <IconButton
+                                        onClick={() => handleAddToShoppingList(meal.id)}
+                                        color="primary"
+                                        size="small"
+                                        sx={{ mr: 1 }}
+                                      >
+                                        <ShoppingCartIcon fontSize="small" />
+                                      </IconButton>
+                                    </Tooltip>
+                                  )}
+                                  <Tooltip title="检查食材库存">
+                                    <IconButton 
+                                      edge="end" 
+                                      onClick={() => handleCheckIngredients(meal.id)}
+                                      color={getMealStatus(meal)}
+                                      size="small"
+                                    >
+                                      <InventoryIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
                                 </ListItemSecondaryAction>
                               </ListItem>
                             ))}

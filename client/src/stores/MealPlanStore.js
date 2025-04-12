@@ -137,6 +137,29 @@ class MealPlanStore {
     }
   }
   
+  // Add out of stock ingredients to shopping list
+  async addOutOfStockToShoppingList(mealId) {
+    runInAction(() => {
+      this.loading = true;
+    });
+    try {
+      const response = await api.post(`/meal-plans/${mealId}/shopping-list/add`);
+      runInAction(() => {
+        this.error = null;
+      });
+      return response.data;
+    } catch (error) {
+      runInAction(() => {
+        this.error = error.message;
+      });
+      throw error;
+    } finally {
+      runInAction(() => {
+        this.loading = false;
+      });
+    }
+  }
+  
   // Get meals for a specific day
   getMealsForDay(date) {
     return this.mealPlans.filter(meal => meal.date === date);
