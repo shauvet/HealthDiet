@@ -24,7 +24,12 @@ import {
   Chip,
   CircularProgress,
   Alert,
-  Tooltip
+  Tooltip,
+  TextField,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -32,7 +37,16 @@ import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import TodayIcon from '@mui/icons-material/Today';
 import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import { mealPlanStore, inventoryStore } from '../stores/RootStore';
+import AddIcon from '@mui/icons-material/Add';
+import InfoIcon from '@mui/icons-material/Info';
+import { mealPlanStore, inventoryStore, recipeStore } from '../stores/RootStore';
+
+const initialIngredient = {
+  name: '',
+  quantity: '',
+  unit: 'g', // Default to grams
+  isMain: true
+};
 
 const MealPlanPage = observer(() => {
   const [selectedMeals, setSelectedMeals] = useState([]);
@@ -42,6 +56,12 @@ const MealPlanPage = observer(() => {
   const [success, setSuccess] = useState('');
   const [mealIngredientStatus, setMealIngredientStatus] = useState({});
   const todayCardRef = useRef(null);
+  
+  // Recipe ingredients dialog state
+  const [openIngredientsDialog, setOpenIngredientsDialog] = useState(false);
+  const [currentMeal, setCurrentMeal] = useState(null);
+  const [editedIngredients, setEditedIngredients] = useState([]);
+  const [savingIngredients, setSavingIngredients] = useState(false);
   
   // Date range for weekly view
   const [dateRange, setDateRange] = useState(() => {
@@ -255,6 +275,66 @@ const MealPlanPage = observer(() => {
     return 'default';
   };
   
+  // Recipe ingredients dialog handlers
+  const handleOpenIngredientsDialog = (meal) => {
+    setCurrentMeal(meal);
+    if (meal.recipe && meal.recipe.ingredients) {
+      setEditedIngredients([...meal.recipe.ingredients]);
+    } else {
+      setEditedIngredients([]);
+    }
+    setOpenIngredientsDialog(true);
+  };
+  
+  const handleCloseIngredientsDialog = () => {
+    setOpenIngredientsDialog(false);
+    setCurrentMeal(null);
+    setEditedIngredients([]);
+  };
+  
+  const handleIngredientChange = (index, field, value) => {
+    const updatedIngredients = [...editedIngredients];
+    updatedIngredients[index] = {
+      ...updatedIngredients[index],
+      [field]: field === 'quantity' ? parseFloat(value) : value
+    };
+    
+    setEditedIngredients(updatedIngredients);
+  };
+  
+  const handleAddIngredient = () => {
+    setEditedIngredients([...editedIngredients, { ...initialIngredient }]);
+  };
+  
+  const handleRemoveIngredient = (index) => {
+    const updatedIngredients = [...editedIngredients];
+    updatedIngredients.splice(index, 1);
+    setEditedIngredients(updatedIngredients);
+  };
+  
+  const handleSaveIngredients = async () => {
+    if (!currentMeal || !currentMeal.recipe) return;
+    
+    setSavingIngredients(true);
+    try {
+      // Here we would call an API to update the recipe ingredients
+      // For now, we'll just update the local state
+      await recipeStore.updateRecipeIngredients(currentMeal.recipe.id, editedIngredients);
+      
+      // Refresh meal plans to get updated data
+      await fetchMeals();
+      
+      setSuccess('食材已更新');
+      setTimeout(() => setSuccess(''), 3000);
+      handleCloseIngredientsDialog();
+    } catch (error) {
+      setError('更新食材失败，请稍后重试');
+      console.error('Failed to update ingredients:', error);
+    } finally {
+      setSavingIngredients(false);
+    }
+  };
+  
   return (
     <Box sx={{ width: '100%' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -447,11 +527,15 @@ const MealPlanPage = observer(() => {
                                     borderBottom: 'none'
                                   }
                                 }}
+                                onClick={() => handleOpenIngredientsDialog(meal)}
                               >
                                 <Checkbox
                                   edge="start"
                                   checked={selectedMeals.includes(meal.id)}
-                                  onChange={() => handleToggleMeal(meal.id)}
+                                  onChange={(e) => {
+                                    e.stopPropagation();
+                                    handleToggleMeal(meal.id);
+                                  }}
                                   disabled={isPastDate(date)}
                                   size="small"
                                 />
@@ -478,7 +562,10 @@ const MealPlanPage = observer(() => {
                                   {mealIngredientStatus[meal.id] && mealIngredientStatus[meal.id].outOfStock.length > 0 && (
                                     <Tooltip title="添加缺少的食材到采购清单">
                                       <IconButton
-                                        onClick={() => handleAddToShoppingList(meal.id)}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleAddToShoppingList(meal.id);
+                                        }}
                                         color="primary"
                                         size="small"
                                         sx={{ mr: 1 }}
@@ -490,11 +577,27 @@ const MealPlanPage = observer(() => {
                                   <Tooltip title="检查食材库存">
                                     <IconButton 
                                       edge="end" 
-                                      onClick={() => handleCheckIngredients(meal.id)}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleCheckIngredients(meal.id);
+                                      }}
                                       color={getMealStatus(meal)}
                                       size="small"
+                                      sx={{ mr: 1 }}
                                     >
                                       <InventoryIcon fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                  <Tooltip title="查看食谱详情">
+                                    <IconButton
+                                      edge="end"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenIngredientsDialog(meal);
+                                      }}
+                                      size="small"
+                                    >
+                                      <InfoIcon fontSize="small" />
                                     </IconButton>
                                   </Tooltip>
                                 </ListItemSecondaryAction>
@@ -585,6 +688,103 @@ const MealPlanPage = observer(() => {
           <Button onClick={handleCloseDeleteDialog}>取消</Button>
           <Button onClick={handleConfirmDelete} color="error" autoFocus>
             删除
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Recipe Ingredients Dialog */}
+      <Dialog 
+        open={openIngredientsDialog} 
+        onClose={handleCloseIngredientsDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {currentMeal?.recipe?.name || '食谱详情'} - 食材列表
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {editedIngredients.length === 0 ? (
+              <Typography color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                暂无食材信息
+              </Typography>
+            ) : (
+              <>
+                {editedIngredients.map((ingredient, index) => (
+                  <Grid container spacing={2} key={index} sx={{ mb: 1 }}>
+                    <Grid item xs={12} sm={4}>
+                      <TextField
+                        label="食材名称"
+                        value={ingredient.name}
+                        onChange={(e) => handleIngredientChange(index, 'name', e.target.value)}
+                        fullWidth
+                        required
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <TextField
+                        label="数量"
+                        type="number"
+                        value={ingredient.quantity}
+                        onChange={(e) => handleIngredientChange(index, 'quantity', e.target.value)}
+                        fullWidth
+                        required
+                        InputProps={{
+                          inputProps: { min: 0.1, step: 0.1 }
+                        }}
+                      />
+                    </Grid>
+                    <Grid item xs={6} sm={3}>
+                      <FormControl fullWidth>
+                        <InputLabel id={`unit-label-${index}`}>单位</InputLabel>
+                        <Select
+                          labelId={`unit-label-${index}`}
+                          value={ingredient.unit}
+                          label="单位"
+                          onChange={(e) => handleIngredientChange(index, 'unit', e.target.value)}
+                        >
+                          <MenuItem value="g">克 (g)</MenuItem>
+                          <MenuItem value="kg">千克 (kg)</MenuItem>
+                          <MenuItem value="ml">毫升 (ml)</MenuItem>
+                          <MenuItem value="piece">个</MenuItem>
+                          <MenuItem value="tbsp">汤匙</MenuItem>
+                          <MenuItem value="tsp">茶匙</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={6} sm={2} sx={{ display: 'flex', alignItems: 'center' }}>
+                      <IconButton
+                        color="error"
+                        onClick={() => handleRemoveIngredient(index)}
+                        disabled={editedIngredients.length <= 1}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Grid>
+                  </Grid>
+                ))}
+              </>
+            )}
+            
+            <Button
+              variant="outlined"
+              startIcon={<AddIcon />}
+              onClick={handleAddIngredient}
+              size="small"
+              sx={{ mt: 1 }}
+            >
+              添加食材
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseIngredientsDialog}>取消</Button>
+          <Button 
+            onClick={handleSaveIngredients} 
+            variant="contained"
+            disabled={savingIngredients}
+          >
+            {savingIngredients ? <CircularProgress size={24} /> : '保存'}
           </Button>
         </DialogActions>
       </Dialog>

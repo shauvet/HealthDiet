@@ -198,6 +198,35 @@ class RecipeStore {
       });
     }
   }
+  
+  // Update recipe ingredients
+  async updateRecipeIngredients(recipeId, ingredients) {
+    runInAction(() => {
+      this.loading = true;
+    });
+    try {
+      await api.patch(`/recipes/${recipeId}/ingredients`, { ingredients });
+      
+      // After updating the ingredients, refresh the recipes
+      await this.fetchPersonalRecipes();
+      await this.fetchRecommendedRecipes();
+      await this.fetchFavoriteRecipes();
+      
+      runInAction(() => {
+        this.error = null;
+      });
+      return true;
+    } catch (error) {
+      runInAction(() => {
+        this.error = error.message;
+      });
+      throw error;
+    } finally {
+      runInAction(() => {
+        this.loading = false;
+      });
+    }
+  }
 }
 
 export default new RecipeStore(); 
