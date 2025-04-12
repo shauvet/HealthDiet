@@ -1,6 +1,34 @@
 const { Schema, SchemaFactory, Prop } = require('@nestjs/mongoose');
 const mongoose = require('mongoose');
 
+// Create directly with Mongoose Schema instead of using NestJS decorators
+const FamilyMemberSchema = new mongoose.Schema(
+  {
+    // 基本信息
+    name: { type: String, required: true },
+    relationship: { type: String, required: true },
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other'],
+      default: 'other',
+    },
+    birthdate: { type: Date },
+
+    // 生理数据
+    height: { type: Number, default: null },
+    weight: { type: Number, default: null },
+
+    // 饮食限制和过敏
+    allergies: { type: String, default: '' },
+    dietaryRestrictions: { type: String, default: '' },
+
+    // 用户ID
+    userId: { type: String, required: true },
+  },
+  { timestamps: true },
+);
+
+// Use NestJS style schema for User if needed
 class User {
   static name = 'User';
 }
@@ -23,28 +51,10 @@ Prop({ type: [String] })(User.prototype, 'healthGoals');
 const UserSchema = SchemaFactory.createForClass(User);
 UserSchema.set('timestamps', true);
 
+// Create FamilyMember class for backward compatibility
 class FamilyMember {
   static name = 'FamilyMember';
 }
-
-Prop({ required: true, type: String })(FamilyMember.prototype, 'name');
-Prop({ required: true, type: String })(FamilyMember.prototype, 'relationship');
-Prop({ enum: ['male', 'female', 'other'], type: String })(
-  FamilyMember.prototype,
-  'gender',
-);
-Prop({ type: Date })(FamilyMember.prototype, 'birthdate');
-Prop({ type: Number })(FamilyMember.prototype, 'height');
-Prop({ type: Number })(FamilyMember.prototype, 'weight');
-Prop({ type: [String] })(FamilyMember.prototype, 'allergies');
-Prop({ type: [String] })(FamilyMember.prototype, 'dietaryRestrictions');
-Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true })(
-  FamilyMember.prototype,
-  'userId',
-);
-
-const FamilyMemberSchema = SchemaFactory.createForClass(FamilyMember);
-FamilyMemberSchema.set('timestamps', true);
 
 // Apply Schema decorator
 Schema({ timestamps: true })(User);

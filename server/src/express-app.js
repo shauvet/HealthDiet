@@ -8,6 +8,7 @@ const inventoryRoutes = require('./inventory/inventory.routes');
 const mealPlanRoutes = require('./meal-plans/meal-plan.routes');
 const recipeRoutes = require('./recipes/recipe.routes');
 const RecipeRepository = require('./recipes/repositories/recipe.repository');
+const FamilyMemberRepository = require('./users/repositories/family-member.repository');
 
 // Create Express app
 const app = express();
@@ -45,20 +46,22 @@ const authenticateUser = (req, res, next) => {
 
   if (authHeader) {
     const token = authHeader.split(' ')[1]; // Bearer TOKEN
+    console.log('收到认证token:', token);
 
     // 实际项目中，这里应该验证 token
     // 为了简化，我们只检查是否存在 token
     if (token) {
-      // 这里应该解析 token 并获取用户 ID
-      // 将用户 ID 附加到请求对象
-      req.userId = '000000000000000000000001'; // 模拟用户 ID
+      // 使用固定的userId便于测试
+      const userId = '000000000000000000000001';
+      req.userId = userId;
+      console.log('用户认证成功，userId:', userId);
       next();
     } else {
-      res.status(401).json({ error: 'Invalid token format' });
+      res.status(401).json({ error: 'Token格式无效' });
     }
   } else {
     // 允许未授权访问，但不提供 userId
-    console.log('Unauthenticated request to:', req.originalUrl);
+    console.log('未授权请求:', req.originalUrl);
     next();
   }
 };
@@ -85,10 +88,19 @@ apiRouter.get('/health', (req, res) => {
 // Auth routes
 apiRouter.post('/auth/login', (req, res) => {
   const { email } = req.body;
-  console.log(`Login attempt for: ${email}`);
+  console.log(`登录尝试 - 邮箱: ${email}`);
+
+  // 生成唯一token
+  const token = 'sample-token-' + Date.now();
+  console.log(`生成token: ${token}`);
+
+  // 分配固定的用户ID便于测试
+  const userId = '000000000000000000000001';
+  console.log(`为token分配用户ID: ${userId}`);
+
   res.json({
-    token: 'sample-token-' + Date.now(),
-    user: { id: 1, email: email || 'user@example.com' },
+    token: token,
+    user: { id: userId, email: email || 'user@example.com' },
   });
 });
 
@@ -115,11 +127,114 @@ apiRouter.patch('/users/profile', (req, res) => {
 });
 
 // Family member routes
-apiRouter.get('/users/family', (req, res) => {
-  res.json([
-    { id: 1, name: 'Family Member 1', relationship: 'Spouse' },
-    { id: 2, name: 'Family Member 2', relationship: 'Child' },
-  ]);
+apiRouter.get('/users/family', async (req, res) => {
+  try {
+    const userId = req.userId || '000000000000000000000001';
+    console.log('获取家庭成员列表，用户ID:', userId);
+
+    // 验证FamilyMemberRepository是否可用
+    if (
+      !FamilyMemberRepository ||
+      typeof FamilyMemberRepository.getFamilyMembers !== 'function'
+    ) {
+      console.error('FamilyMemberRepository未正确加载');
+      return res.status(500).json({ error: '系统错误：存储库未加载' });
+    }
+
+    const familyMembers = await FamilyMemberRepository.getFamilyMembers(userId);
+    console.log('找到家庭成员数量:', familyMembers.length);
+
+    res.json(familyMembers);
+  } catch (error) {
+    console.error('获取家庭成员出错:', error);
+    console.error('错误堆栈:', error.stack);
+    res.status(500).json({ error: '获取家庭成员失败: ' + error.message });
+  }
+});
+
+// Add family member route
+apiRouter.post('/users/family', async (req, res) => {
+  try {
+    const userId = req.userId || '000000000000000000000001';
+    const memberData = req.body;
+    console.log('添加家庭成员，用户ID:', userId);
+    console.log('家庭成员数据:', memberData);
+
+    // 验证必填字段
+    if (!memberData.name || !memberData.relationship) {
+      return res.status(400).json({ error: '姓名和关系为必填项' });
+    }
+
+    // 验证FamilyMemberRepository是否可用
+    if (
+      !FamilyMemberRepository ||
+      typeof FamilyMemberRepository.addFamilyMember !== 'function'
+    ) {
+      console.error('FamilyMemberRepository未正确加载');
+      return res.status(500).json({ error: '系统错误：存储库未加载' });
+    }
+
+    const newMember = await FamilyMemberRepository.addFamilyMember(
+      userId,
+      memberData,
+    );
+    console.log('家庭成员添加成功，ID:', newMember._id);
+
+    res.status(201).json(newMember);
+  } catch (error) {
+    console.error('添加家庭成员出错:', error);
+    console.error('错误堆栈:', error.stack);
+    res.status(500).json({ error: '添加家庭成员失败: ' + error.message });
+  }
+});
+
+// Update family member route
+apiRouter.patch('/users/family/:id', async (req, res) => {
+  try {
+    const userId = req.userId || '000000000000000000000001';
+    const { id } = req.params;
+    const updateData = req.body;
+    console.log(`Updating family member ${id}:`, updateData);
+
+    const updatedMember = await FamilyMemberRepository.updateFamilyMember(
+      userId,
+      id,
+      updateData,
+    );
+
+    if (!updatedMember) {
+      return res.status(404).json({ error: 'Family member not found' });
+    }
+
+    res.json(updatedMember);
+  } catch (error) {
+    console.error('Error updating family member:', error);
+    res
+      .status(500)
+      .json({ error: 'Failed to update family member: ' + error.message });
+  }
+});
+
+// Delete family member route
+apiRouter.delete('/users/family/:id', async (req, res) => {
+  try {
+    const userId = req.userId || '000000000000000000000001';
+    const { id } = req.params;
+    console.log(`Deleting family member ${id}`);
+
+    const result = await FamilyMemberRepository.deleteFamilyMember(userId, id);
+
+    if (!result) {
+      return res.status(404).json({ error: 'Family member not found' });
+    }
+
+    res.json({ success: true, message: `Family member ${id} deleted` });
+  } catch (error) {
+    console.error('Error deleting family member:', error);
+    res
+      .status(500)
+      .json({ error: 'Failed to delete family member: ' + error.message });
+  }
 });
 
 // Recipe routes
@@ -298,15 +413,6 @@ apiRouter.get('/recipes/search', (req, res) => {
       cookingTime: 25,
       imageUrl: '/assets/food-placeholder.svg',
     },
-  ]);
-});
-
-// Inventory routes
-apiRouter.get('/inventory', (req, res) => {
-  res.json([
-    { id: 1, name: '鸡蛋', quantity: 10, unit: '个', category: 'dairy' },
-    { id: 2, name: '西红柿', quantity: 5, unit: '个', category: 'vegetables' },
-    { id: 3, name: '面粉', quantity: 500, unit: 'g', category: 'grains' },
   ]);
 });
 
@@ -667,10 +773,23 @@ try {
 async function bootstrap() {
   try {
     // Connect to MongoDB
-    await mongoose.connect(
+    console.log(
+      'Connecting to MongoDB at:',
       process.env.MONGODB_URI || 'mongodb://localhost/health-diet',
     );
-    console.log('Connected to MongoDB');
+    await mongoose.connect(
+      process.env.MONGODB_URI || 'mongodb://localhost/health-diet',
+      {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      },
+    );
+    console.log('Connected to MongoDB successfully');
+
+    // 验证数据库连接
+    const dbConnection = mongoose.connection;
+    console.log('MongoDB connection state:', dbConnection.readyState);
+    console.log('Connected to database:', dbConnection.name);
 
     // Start server
     app.listen(port, '0.0.0.0', () => {
