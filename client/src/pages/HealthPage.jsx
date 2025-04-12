@@ -111,56 +111,76 @@ const HealthPage = observer(() => {
   
   // 渲染营养摄入趋势
   const renderNutritionTrend = () => (
-    <Box sx={{ mb: 3 }}>
+    <Box sx={{ mb: 3, width: '100%' }}>
       <Typography variant="subtitle1" gutterBottom>
         最近7天营养摄入变化
       </Typography>
-      {healthStore.nutritionTrends && Object.entries(healthStore.nutritionTrends.data).map(([nutrient, values]) => (
-        <Box key={nutrient} sx={{ mb: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
-            <Typography variant="body2">
-              {nutrient === 'calories' ? '热量 (kcal)' :
-               nutrient === 'protein' ? '蛋白质 (g)' :
-               nutrient === 'fat' ? '脂肪 (g)' :
-               nutrient === 'carbs' ? '碳水化合物 (g)' : '膳食纤维 (g)'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              平均: {Math.round(values.reduce((a, b) => a + b) / values.length)}
-            </Typography>
-          </Box>
-          <Box sx={{ display: 'flex', alignItems: 'flex-end', height: 40 }}>
-            {values.map((value, index) => (
-              <Box
-                key={index}
-                sx={{
-                  flex: 1,
-                  mx: 0.5,
-                  height: `${(value / Math.max(...values)) * 100}%`,
-                  bgcolor: 'primary.main',
-                  borderRadius: '2px 2px 0 0',
-                  position: 'relative',
-                  '&:hover': {
-                    bgcolor: 'primary.dark',
-                  }
-                }}
-              />
-            ))}
-          </Box>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-            {healthStore.nutritionTrends.dates.map((date, index) => (
-              <Typography key={index} variant="caption" color="text.secondary" sx={{ flex: 1, textAlign: 'center' }}>
-                {date}
+      {healthStore.nutritionTrends && Object.keys(healthStore.nutritionTrends.data).length > 0 ? (
+        Object.entries(healthStore.nutritionTrends.data).map(([nutrient, values]) => (
+          <Box key={nutrient} sx={{ mb: 2, width: '100%' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+              <Typography variant="body2">
+                {nutrient === 'calories' ? '热量 (kcal)' :
+                 nutrient === 'protein' ? '蛋白质 (g)' :
+                 nutrient === 'fat' ? '脂肪 (g)' :
+                 nutrient === 'carbs' ? '碳水化合物 (g)' : '膳食纤维 (g)'}
               </Typography>
-            ))}
+              <Typography variant="body2" color="text.secondary">
+                平均: {Math.round(values.reduce((a, b) => a + b, 0) / values.length)}
+              </Typography>
+            </Box>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'flex-end', 
+              height: 40, 
+              width: '100%'
+            }}>
+              {values.map((value, index) => (
+                <Box
+                  key={index}
+                  sx={{
+                    flex: 1,
+                    mx: { xs: 0.1, sm: 0.5 },
+                    height: `${Math.max(...values) > 0 ? (value / Math.max(...values)) * 100 : 0}%`,
+                    bgcolor: 'primary.main',
+                    borderRadius: '2px 2px 0 0',
+                    position: 'relative',
+                    minWidth: { xs: 0, sm: 'auto' },
+                    '&:hover': {
+                      bgcolor: 'primary.dark',
+                    }
+                  }}
+                />
+              ))}
+            </Box>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5, width: '100%' }}>
+              {healthStore.nutritionTrends.dates.map((date, index) => (
+                <Typography key={index} variant="caption" color="text.secondary" sx={{ 
+                  flex: 1, 
+                  textAlign: 'center',
+                  fontSize: { xs: '0.6rem', sm: '0.75rem' },
+                  px: { xs: 0, sm: 0.5 },
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {date}
+                </Typography>
+              ))}
+            </Box>
           </Box>
+        ))
+      ) : (
+        <Box sx={{ p: 2, textAlign: 'center' }}>
+          <Typography color="text.secondary">暂无营养趋势数据</Typography>
         </Box>
-      ))}
+      )}
     </Box>
   );
 
   // 渲染营养素进度条
   const NutrientBar = ({ name, current, recommended, unit }) => {
-    const percentage = (current / recommended) * 100;
+    const percentage = recommended > 0 ? (current / recommended) * 100 : 0;
     return (
       <Box sx={{ mb: 2 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
@@ -169,7 +189,7 @@ const HealthPage = observer(() => {
             {current}{unit} / {recommended}{unit}
           </Typography>
         </Box>
-        <Box sx={{ position: 'relative', height: 8, bgcolor: 'grey.200', borderRadius: 1 }}>
+        <Box sx={{ position: 'relative', height: 8, bgcolor: 'grey.200', borderRadius: 1, width: '100%' }}>
           <Box
             sx={{
               position: 'absolute',
@@ -298,16 +318,17 @@ const HealthPage = observer(() => {
           {/* 日均营养摄入 */}
           <Box sx={{ 
             width: '100%', 
-            maxWidth: { xs: '100%', sm: '600px' }
+            maxWidth: { xs: '100%', sm: '600px' },
+            px: { xs: 2, sm: 0 }
           }}>
             <Card sx={{ 
               width: '100%',
               borderRadius: { xs: 0, sm: 1 },
               boxShadow: { xs: 'none', sm: 1 },
-              mb: { xs: 0, sm: 3 }
+              mb: { xs: 2, sm: 3 }
             }}>
               <CardHeader title="日均营养摄入" />
-              <CardContent>
+              <CardContent sx={{ width: '100%' }}>
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={6}>
                     <ChartPlaceholder sx={{
@@ -322,19 +343,25 @@ const HealthPage = observer(() => {
                       <Typography variant="subtitle1" gutterBottom>
                         营养素摄入状况
                       </Typography>
-                      {healthStore.nutrientData && Object.entries(healthStore.nutrientData).map(([key, data]) => (
-                        <NutrientProgressIndicator
-                          key={key}
-                          label={key === 'calories' ? '热量' : 
-                                 key === 'protein' ? '蛋白质' :
-                                 key === 'fat' ? '脂肪' :
-                                 key === 'carbs' ? '碳水化合物' : '纤维'}
-                          value={data.value}
-                          max={data.max}
-                          unit={data.unit}
-                          color={data.color}
-                        />
-                      ))}
+                      {healthStore.nutrientData && Object.keys(healthStore.nutrientData).length > 0 ? (
+                        Object.entries(healthStore.nutrientData).map(([key, data]) => (
+                          <NutrientProgressIndicator
+                            key={key}
+                            label={key === 'calories' ? '热量' : 
+                                  key === 'protein' ? '蛋白质' :
+                                  key === 'fat' ? '脂肪' :
+                                  key === 'carbs' ? '碳水化合物' : '纤维'}
+                            value={data.value}
+                            max={data.max}
+                            unit={data.unit}
+                            color={data.color}
+                          />
+                        ))
+                      ) : (
+                        <Box sx={{ p: 2, textAlign: 'center' }}>
+                          <Typography color="text.secondary">暂无营养数据</Typography>
+                        </Box>
+                      )}
                     </Box>
                   </Grid>
                 </Grid>
@@ -345,17 +372,22 @@ const HealthPage = observer(() => {
           {/* 营养摄入趋势 */}
           <Box sx={{ 
             width: '100%', 
-            maxWidth: { xs: '100%', sm: '600px' }
+            maxWidth: { xs: '100%', sm: '600px' },
+            px: { xs: 2, sm: 0 }
           }}>
             <Card sx={{ 
               width: '100%',
               borderRadius: { xs: 0, sm: 1 },
               boxShadow: { xs: 'none', sm: 1 },
-              mb: { xs: 0, sm: 3 }
+              mb: { xs: 2, sm: 3 }
             }}>
               <CardHeader title="营养摄入趋势" />
               <CardContent sx={{ width: '100%' }}>
-                {healthStore.nutritionTrends && renderNutritionTrend()}
+                {healthStore.nutritionTrends ? renderNutritionTrend() : (
+                  <Box sx={{ p: 2, textAlign: 'center' }}>
+                    <Typography color="text.secondary">加载中...</Typography>
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </Box>
@@ -363,25 +395,32 @@ const HealthPage = observer(() => {
           {/* 维生素摄入 */}
           <Box sx={{ 
             width: '100%', 
-            maxWidth: { xs: '100%', sm: '600px' }
+            maxWidth: { xs: '100%', sm: '600px' },
+            px: { xs: 2, sm: 0 }
           }}>
             <Card sx={{ 
               width: '100%',
               borderRadius: { xs: 0, sm: 1 },
               boxShadow: { xs: 'none', sm: 1 },
-              mb: { xs: 0, sm: 3 }
+              mb: { xs: 2, sm: 3 }
             }}>
               <CardHeader title="维生素摄入" />
               <CardContent sx={{ width: '100%' }}>
-                {healthStore.vitaminIntake && healthStore.vitaminIntake.map((vitamin) => (
-                  <NutrientBar
-                    key={vitamin.name}
-                    name={vitamin.name}
-                    current={vitamin.current}
-                    recommended={vitamin.recommended}
-                    unit={vitamin.unit}
-                  />
-                ))}
+                {healthStore.vitaminIntake && healthStore.vitaminIntake.length > 0 ? (
+                  healthStore.vitaminIntake.map((vitamin) => (
+                    <NutrientBar
+                      key={vitamin.name}
+                      name={vitamin.name}
+                      current={vitamin.current}
+                      recommended={vitamin.recommended}
+                      unit={vitamin.unit}
+                    />
+                  ))
+                ) : (
+                  <Box sx={{ p: 2, textAlign: 'center' }}>
+                    <Typography color="text.secondary">暂无维生素数据</Typography>
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </Box>
@@ -389,25 +428,32 @@ const HealthPage = observer(() => {
           {/* 矿物质摄入 */}
           <Box sx={{ 
             width: '100%', 
-            maxWidth: { xs: '100%', sm: '600px' }
+            maxWidth: { xs: '100%', sm: '600px' },
+            px: { xs: 2, sm: 0 }
           }}>
             <Card sx={{ 
               width: '100%',
               borderRadius: { xs: 0, sm: 1 },
               boxShadow: { xs: 'none', sm: 1 },
-              mb: { xs: 0, sm: 3 }
+              mb: { xs: 2, sm: 3 }
             }}>
               <CardHeader title="矿物质摄入" />
               <CardContent sx={{ width: '100%' }}>
-                {healthStore.mineralIntake && healthStore.mineralIntake.map((mineral) => (
-                  <NutrientBar
-                    key={mineral.name}
-                    name={mineral.name}
-                    current={mineral.current}
-                    recommended={mineral.recommended}
-                    unit={mineral.unit}
-                  />
-                ))}
+                {healthStore.mineralIntake && healthStore.mineralIntake.length > 0 ? (
+                  healthStore.mineralIntake.map((mineral) => (
+                    <NutrientBar
+                      key={mineral.name}
+                      name={mineral.name}
+                      current={mineral.current}
+                      recommended={mineral.recommended}
+                      unit={mineral.unit}
+                    />
+                  ))
+                ) : (
+                  <Box sx={{ p: 2, textAlign: 'center' }}>
+                    <Typography color="text.secondary">暂无矿物质数据</Typography>
+                  </Box>
+                )}
               </CardContent>
             </Card>
           </Box>
@@ -425,16 +471,17 @@ const HealthPage = observer(() => {
           {/* 饮食结构分析 */}
           <Box sx={{ 
             width: '100%', 
-            maxWidth: { xs: '100%', sm: '600px' }
+            maxWidth: { xs: '100%', sm: '600px' },
+            px: { xs: 2, sm: 0 }
           }}>
             <Card sx={{ 
               width: '100%',
               borderRadius: { xs: 0, sm: 1 },
               boxShadow: { xs: 'none', sm: 1 },
-              mb: { xs: 0, sm: 3 }
+              mb: { xs: 2, sm: 3 }
             }}>
               <CardHeader title="饮食结构分析" />
-              <CardContent sx={{ width: '100%', overflow: 'hidden' }}>
+              <CardContent sx={{ width: '100%' }}>
                 <Grid container spacing={2}>
                   <Grid item xs={12} md={6}>
                     <Box sx={{ 
@@ -510,13 +557,14 @@ const HealthPage = observer(() => {
           {/* 食材多样性分析 */}
           <Box sx={{ 
             width: '100%', 
-            maxWidth: { xs: '100%', sm: '600px' }
+            maxWidth: { xs: '100%', sm: '600px' },
+            px: { xs: 2, sm: 0 }
           }}>
             <Card sx={{ 
               width: '100%',
               borderRadius: { xs: 0, sm: 1 },
               boxShadow: { xs: 'none', sm: 1 },
-              mb: { xs: 0, sm: 3 }
+              mb: { xs: 2, sm: 3 }
             }}>
               <CardHeader title="食材多样性分析" />
               <CardContent sx={{ width: '100%' }}>
@@ -567,13 +615,14 @@ const HealthPage = observer(() => {
           {/* 营养建议 */}
           <Box sx={{ 
             width: '100%', 
-            maxWidth: { xs: '100%', sm: '600px' }
+            maxWidth: { xs: '100%', sm: '600px' },
+            px: { xs: 2, sm: 0 }
           }}>
             <Card sx={{ 
               width: '100%',
               borderRadius: { xs: 0, sm: 1 },
               boxShadow: { xs: 'none', sm: 1 },
-              mb: { xs: 0, sm: 3 }
+              mb: { xs: 2, sm: 3 }
             }}>
               <CardHeader title="营养建议" />
               <CardContent sx={{ width: '100%' }}>
@@ -607,13 +656,14 @@ const HealthPage = observer(() => {
           {/* 常用食材分析 */}
           <Box sx={{ 
             width: '100%', 
-            maxWidth: { xs: '100%', sm: '600px' }
+            maxWidth: { xs: '100%', sm: '600px' },
+            px: { xs: 2, sm: 0 }
           }}>
             <Card sx={{ 
               width: '100%',
               borderRadius: { xs: 0, sm: 1 },
               boxShadow: { xs: 'none', sm: 1 },
-              mb: { xs: 0, sm: 3 }
+              mb: { xs: 2, sm: 3 }
             }}>
               <CardHeader title="常用食材分析" />
               <CardContent sx={{ width: '100%' }}>
