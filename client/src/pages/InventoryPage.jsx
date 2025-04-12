@@ -117,7 +117,8 @@ const InventoryPage = observer(() => {
   };
   
   const handleChangeQuantity = async (ingredientId, delta) => {
-    const ingredient = inventoryStore.ingredients.find(i => i.id === ingredientId);
+    // Find the ingredient by either id or _id
+    const ingredient = inventoryStore.ingredients.find(i => (i.id === ingredientId || i._id === ingredientId));
     if (ingredient) {
       const newQuantity = Math.max(0, ingredient.quantity + delta);
       await inventoryStore.updateIngredientQuantity(ingredientId, newQuantity);
@@ -125,6 +126,10 @@ const InventoryPage = observer(() => {
   };
   
   const handleRemoveIngredient = async (ingredientId) => {
+    if (!ingredientId) {
+      console.error('Attempted to remove ingredient with invalid ID');
+      return;
+    }
     await inventoryStore.removeIngredient(ingredientId);
   };
   
@@ -165,6 +170,12 @@ const InventoryPage = observer(() => {
   
   const filterIngredients = () => {
     let filtered = inventoryStore.ingredients;
+    
+    // Check for ingredients without IDs
+    const missingIds = filtered.filter(item => !item.id);
+    if (missingIds.length > 0) {
+      console.error('Found ingredients missing IDs:', missingIds);
+    }
     
     // Filter by search query
     if (searchQuery) {
@@ -383,7 +394,13 @@ const InventoryPage = observer(() => {
                           <IconButton
                             edge="end"
                             aria-label="删除"
-                            onClick={() => handleRemoveIngredient(ingredient.id)}
+                            onClick={() => {
+                              console.log('Delete clicked for ingredient:', ingredient);
+                              // Get the ID from either id or _id field
+                              const ingredientId = ingredient?.id || ingredient?._id;
+                              console.log('Using ingredient ID:', ingredientId);
+                              handleRemoveIngredient(ingredientId);
+                            }}
                             color="error"
                             sx={{ ml: 1 }}
                           >

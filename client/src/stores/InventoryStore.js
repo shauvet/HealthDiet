@@ -17,8 +17,28 @@ class InventoryStore {
     this.loading = true;
     try {
       const response = await api.get('/inventory');
+      
+      // Normalize IDs to ensure both id and _id exist on all objects
+      let normalizedData = [];
+      if (Array.isArray(response.data)) {
+        normalizedData = response.data.map(item => {
+          // If neither id nor _id exists, this is a problem
+          if (!item.id && !item._id) {
+            console.error('Item missing both id and _id:', item);
+            return item;
+          }
+          
+          // Ensure both id and _id exist
+          return {
+            ...item,
+            id: item.id || item._id,
+            _id: item._id || item.id
+          };
+        });
+      }
+      
       runInAction(() => {
-        this.ingredients = response.data;
+        this.ingredients = normalizedData;
         this.error = null;
       });
     } catch (error) {
@@ -62,7 +82,7 @@ class InventoryStore {
       
       // Update local state
       runInAction(() => {
-        const index = this.ingredients.findIndex(i => i.id === ingredientId);
+        const index = this.ingredients.findIndex(i => (i.id === ingredientId || i._id === ingredientId));
         if (index !== -1) {
           this.ingredients[index].quantity = quantity;
         }
@@ -84,13 +104,22 @@ class InventoryStore {
   
   // Remove ingredient from inventory
   async removeIngredient(ingredientId) {
+    // Validate the ingredient ID
+    if (!ingredientId) {
+      console.error('Invalid ingredient ID for deletion');
+      runInAction(() => {
+        this.error = 'Invalid ingredient ID';
+      });
+      return false;
+    }
+    
     this.loading = true;
     try {
       await api.delete(`/inventory/${ingredientId}`);
       
       // Update local state
       runInAction(() => {
-        this.ingredients = this.ingredients.filter(i => i.id !== ingredientId);
+        this.ingredients = this.ingredients.filter(i => (i.id !== ingredientId && i._id !== ingredientId));
         this.error = null;
       });
       
@@ -112,8 +141,28 @@ class InventoryStore {
     this.loading = true;
     try {
       const response = await api.get('/inventory/shopping-list');
+      
+      // Normalize IDs to ensure both id and _id exist on all objects
+      let normalizedData = [];
+      if (Array.isArray(response.data)) {
+        normalizedData = response.data.map(item => {
+          // If neither id nor _id exists, this is a problem
+          if (!item.id && !item._id) {
+            console.error('Shopping item missing both id and _id:', item);
+            return item;
+          }
+          
+          // Ensure both id and _id exist
+          return {
+            ...item,
+            id: item.id || item._id,
+            _id: item._id || item.id
+          };
+        });
+      }
+      
       runInAction(() => {
-        this.shoppingList = response.data;
+        this.shoppingList = normalizedData;
         this.error = null;
       });
     } catch (error) {
