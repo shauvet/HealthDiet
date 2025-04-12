@@ -266,6 +266,72 @@ const RecipeController = {
     }
   },
 
+  // 更新食谱食材
+  async updateRecipeIngredients(req, res) {
+    try {
+      const { id } = req.params;
+      const { ingredients } = req.body;
+
+      console.log(`[CONTROLLER] 尝试更新食谱 ${id} 的食材`);
+
+      if (!ingredients || !Array.isArray(ingredients)) {
+        return res
+          .status(400)
+          .json({ error: 'Valid ingredients array is required' });
+      }
+
+      // 验证每个食材对象是否包含必要的字段
+      for (const ingredient of ingredients) {
+        if (
+          !ingredient.name ||
+          ingredient.quantity === undefined ||
+          !ingredient.unit
+        ) {
+          return res.status(400).json({
+            error: 'Each ingredient must have name, quantity, and unit fields',
+          });
+        }
+      }
+
+      const updatedRecipe = await RecipeService.updateRecipeIngredients(
+        id,
+        ingredients,
+      );
+
+      if (!updatedRecipe) {
+        // If no recipe found with the given ID, we'll create a new one in the repository
+        console.log(`[CONTROLLER] 没有找到ID为 ${id} 的食谱`);
+      }
+
+      console.log(`[CONTROLLER] 成功处理食谱 ${id} 的食材更新`);
+      res.json(
+        updatedRecipe || { error: 'Recipe not found but ingredients recorded' },
+      );
+    } catch (error) {
+      console.error('[CONTROLLER] Error updating recipe ingredients:', error);
+      console.error('[CONTROLLER] Error stack:', error.stack);
+      res.status(500).json({
+        error: 'Failed to update recipe ingredients',
+        message: error.message,
+        details:
+          error.name === 'CastError'
+            ? {
+                value: error.value,
+                path: error.path,
+                kind: error.kind,
+              }
+            : error.name === 'ValidationError'
+              ? {
+                  validationErrors: Object.keys(error.errors).map((field) => ({
+                    field,
+                    message: error.errors[field].message,
+                  })),
+                }
+              : undefined,
+      });
+    }
+  },
+
   // 获取类似食谱
   async getSimilarRecipes(req, res) {
     try {

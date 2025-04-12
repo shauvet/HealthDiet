@@ -107,6 +107,14 @@ const RecipeService = {
       limit,
     ).then((result) => result.data);
   },
+
+  // 更新食谱食材
+  async updateRecipeIngredients(recipeId, ingredients) {
+    return await RecipeRepository.updateRecipeIngredients(
+      recipeId,
+      ingredients,
+    );
+  },
 };
 
 module.exports = RecipeService;

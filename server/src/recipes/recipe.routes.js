@@ -18,6 +18,8 @@ router.get('/:recipeId/is-favorited', RecipeController.isRecipeFavorited);
 router.post('/', RecipeController.createRecipe);
 router.put('/:id', RecipeController.updateRecipe);
 router.delete('/:id', RecipeController.deleteRecipe);
+// 新增：更新食谱食材
+router.patch('/:id/ingredients', RecipeController.updateRecipeIngredients);
 
 // 收藏相关操作
 router.post('/:recipeId/favorite', RecipeController.favoriteRecipe);

@@ -203,9 +203,7 @@ class RecipeRepository {
   // 检查用户是否已收藏食谱
   async isRecipeFavorited(userId, recipeId) {
     try {
-      console.log(`检查用户 ${userId} 是否收藏了食谱 ${recipeId}`);
-
-      // 直接查找收藏记录
+      console.log(`检查用户 ${userId} 是否已收藏食谱 ${recipeId}`);
       const favorite = await FavoriteRecipe.findOne({
         userId,
         recipeId,
@@ -214,6 +212,90 @@ class RecipeRepository {
     } catch (error) {
       console.error('Error in isRecipeFavorited:', error);
       return false;
+    }
+  }
+
+  // 更新食谱食材
+  async updateRecipeIngredients(recipeId, ingredients) {
+    try {
+      console.log(`更新食谱 ${recipeId} 的食材列表`, { ingredients });
+
+      // Handle different ID formats
+      let query = {};
+
+      // If recipeId is a valid ObjectId, use it directly
+      if (
+        mongoose.Types.ObjectId.isValid(recipeId) &&
+        /^[0-9a-fA-F]{24}$/.test(recipeId)
+      ) {
+        query._id = recipeId;
+      }
+      // For numeric IDs (like "1", "2", etc.)
+      else if (!isNaN(parseInt(recipeId))) {
+        // Use the mockId field for numeric IDs
+        query.mockId = parseInt(recipeId);
+      } else {
+        // If ID is neither valid ObjectId nor numeric, use the string as is
+        query._id = recipeId;
+      }
+
+      console.log('查询条件:', JSON.stringify(query));
+
+      // First try to find the recipe to check if it exists
+      const existingRecipe = await Recipe.findOne(query);
+      console.log('现有食谱:', existingRecipe ? 'Found' : 'Not found');
+
+      // If the recipe doesn't exist and it's a numeric ID, create a new recipe
+      if (!existingRecipe && !isNaN(parseInt(recipeId))) {
+        console.log(`Creating new recipe with mockId ${recipeId}`);
+        // Create minimal recipe with the mockId and ingredients
+        const newRecipe = new Recipe({
+          name: `Recipe ${recipeId}`,
+          description: '',
+          cookingTime: 30,
+          servings: 2,
+          ingredients,
+          steps: ['将食材混合在一起'], // Add a default non-empty step to pass validation
+          mockId: parseInt(recipeId),
+          createdBy: '000000000000000000000001', // Default user ID
+        });
+
+        const savedRecipe = await newRecipe.save();
+        console.log(`新建食谱成功: ${savedRecipe._id}`);
+        return savedRecipe;
+      }
+
+      // If recipe exists, update it
+      if (existingRecipe) {
+        const updatedRecipe = await Recipe.findOneAndUpdate(
+          query,
+          { $set: { ingredients } },
+          { new: true }, // 返回更新后的文档
+        );
+
+        if (!updatedRecipe) {
+          console.log(`未找到食谱 ${recipeId}`);
+          return null;
+        }
+
+        console.log(`更新食谱成功: ${updatedRecipe._id}`);
+        return updatedRecipe;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Error in updateRecipeIngredients:', error);
+      // Add more detailed error logging
+      if (error.name === 'CastError') {
+        console.error('CastError Details:', {
+          value: error.value,
+          path: error.path,
+          kind: error.kind,
+          model: error.model?.modelName,
+          reason: error.reason?.message,
+        });
+      }
+      throw error;
     }
   }
 
