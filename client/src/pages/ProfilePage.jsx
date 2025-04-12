@@ -593,8 +593,8 @@ const ProfilePage = observer(() => {
                 />
                 <Switch 
                   edge="end"
-                  checked={false}
-                  onChange={() => {}}
+                  checked={userStore.darkMode}
+                  onChange={() => userStore.toggleDarkMode()}
                 />
               </ListItem>
               <Divider />

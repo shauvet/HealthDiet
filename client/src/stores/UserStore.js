@@ -7,9 +7,22 @@ class UserStore {
   loading = false;
   error = null;
   isAuthenticated = false;
+  darkMode = false;
   
   constructor() {
     makeAutoObservable(this);
+    // Check if darkMode was stored in localStorage
+    const storedDarkMode = localStorage.getItem('darkMode');
+    if (storedDarkMode) {
+      this.darkMode = storedDarkMode === 'true';
+    }
+  }
+  
+  // Toggle dark mode
+  toggleDarkMode() {
+    this.darkMode = !this.darkMode;
+    localStorage.setItem('darkMode', String(this.darkMode));
+    return this.darkMode;
   }
   
   // Login user

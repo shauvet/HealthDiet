@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { BrowserRouter, Route, Routes, Navigate, useLocation } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -21,32 +21,6 @@ import RegisterPage from './pages/RegisterPage';
 import { userStore } from './stores/RootStore';
 import './App.css';
 
-// Create a theme
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#4caf50', // Green color for health theme
-    },
-    secondary: {
-      main: '#ff9800', // Orange for accent
-    },
-    background: {
-      default: '#f5f5f5',
-    },
-  },
-  typography: {
-    fontFamily: [
-      '-apple-system',
-      'BlinkMacSystemFont',
-      '"Segoe UI"',
-      'Roboto',
-      '"Helvetica Neue"',
-      'Arial',
-      'sans-serif',
-    ].join(','),
-  },
-});
-
 // 全局加载组件
 const LoadingScreen = () => (
   <Box sx={{ 
@@ -59,7 +33,10 @@ const LoadingScreen = () => (
     top: 0,
     left: 0,
     zIndex: 9999,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)'
+    backgroundColor: (theme) => 
+      theme.palette.mode === 'dark' 
+        ? 'rgba(18, 18, 18, 0.7)' 
+        : 'rgba(255, 255, 255, 0.7)'
   }}>
     <CircularProgress />
   </Box>
@@ -86,6 +63,35 @@ const RouteChangeObserver = ({ setIsNavigating }) => {
 const App = observer(() => {
   const [authChecked, setAuthChecked] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+
+  // Create a theme that responds to dark mode preference
+  const theme = useMemo(() => 
+    createTheme({
+      palette: {
+        mode: userStore.darkMode ? 'dark' : 'light',
+        primary: {
+          main: '#4caf50', // Green color for health theme
+        },
+        secondary: {
+          main: '#ff9800', // Orange for accent
+        },
+        background: {
+          default: userStore.darkMode ? '#121212' : '#f5f5f5',
+          paper: userStore.darkMode ? '#1e1e1e' : '#ffffff',
+        },
+      },
+      typography: {
+        fontFamily: [
+          '-apple-system',
+          'BlinkMacSystemFont',
+          '"Segoe UI"',
+          'Roboto',
+          '"Helvetica Neue"',
+          'Arial',
+          'sans-serif',
+        ].join(','),
+      },
+    }), [userStore.darkMode]);
 
   useEffect(() => {
     // Check auth state on app load
