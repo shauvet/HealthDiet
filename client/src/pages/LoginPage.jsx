@@ -29,14 +29,14 @@ const LoginPage = observer(() => {
     if (lastPath) {
       setSavedPath(lastPath);
     }
-  }, []);
-  
-  // 使用useEffect处理重定向逻辑
-  useEffect(() => {
-    if (userStore.isAuthenticated) {
-      navigate(savedPath || '/');
+    
+    // 如果已经认证，直接重定向，不需要再次检查
+    if (userStore.isAuthenticated && !userStore.loading) {
+      const redirectPath = lastPath || '/';
+      sessionStorage.removeItem('lastPath');
+      navigate(redirectPath, { replace: true });
     }
-  }, [savedPath, navigate]);
+  }, []);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -61,7 +61,8 @@ const LoginPage = observer(() => {
         const redirectPath = savedPath || '/';
         // 清除保存的路径
         sessionStorage.removeItem('lastPath');
-        navigate(redirectPath);
+        // 使用replace模式导航，避免在历史记录中留下多余条目
+        navigate(redirectPath, { replace: true });
       } else {
         setError(userStore.error || '登录失败，请检查您的凭据');
       }

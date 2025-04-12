@@ -73,18 +73,28 @@ class UserStore {
   
   // Check if token is valid and fetch user data
   async checkAuth() {
+    // 首次检查时设置loading为true
+    runInAction(() => {
+      this.loading = true;
+    });
+    
     const token = localStorage.getItem('token');
     if (!token) {
       runInAction(() => {
         this.isAuthenticated = false;
+        this.loading = false;
       });
       return false;
     }
     
     try {
-      await this.fetchCurrentUser();
+      // 直接调用API，不要嵌套调用fetchCurrentUser以避免多次设置loading状态
+      const response = await api.get('/users/profile');
       runInAction(() => {
+        this.currentUser = response.data;
         this.isAuthenticated = true;
+        this.error = null;
+        this.loading = false;
       });
       return true;
     } catch (error) {
@@ -92,6 +102,7 @@ class UserStore {
       localStorage.removeItem('token');
       runInAction(() => {
         this.isAuthenticated = false;
+        this.loading = false;
       });
       return false;
     }

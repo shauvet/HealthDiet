@@ -40,7 +40,8 @@ api.interceptors.response.use(
         sessionStorage.setItem('lastPath', currentPath);
       }
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      // 注释掉强制跳转，让React Router自己处理重定向
+      // window.location.href = '/login';
     }
     return Promise.reject(error);
   }
