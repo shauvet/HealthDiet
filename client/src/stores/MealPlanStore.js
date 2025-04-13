@@ -39,7 +39,7 @@ class MealPlanStore {
       this.loading = true;
     });
     try {
-      const response = await api.post('/mealplan/add', mealData);
+      const response = await api.post('/meal-plans', mealData);
       runInAction(() => {
         this.mealPlans.push(response.data);
         this.error = null;

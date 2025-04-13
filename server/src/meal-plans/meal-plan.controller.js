@@ -1,5 +1,48 @@
 const MealPlanService = require('./meal-plan.service');
 
+// Helper function to transform the meal plan data structure
+const transformMealPlans = (mealPlans) => {
+  if (!Array.isArray(mealPlans)) {
+    // If it's a single object, transform it and return
+    if (mealPlans && typeof mealPlans === 'object') {
+      return transformMealPlanObject(mealPlans);
+    }
+    return mealPlans;
+  }
+
+  // Process array of meal plans
+  return mealPlans.map(transformMealPlanObject);
+};
+
+// Helper to transform a single meal plan object
+const transformMealPlanObject = (mealPlan) => {
+  if (!mealPlan || !mealPlan.recipeId) return mealPlan;
+
+  // Create a new object with all properties from the meal plan
+  const transformedMealPlan = {
+    ...(mealPlan.toObject ? mealPlan.toObject() : mealPlan),
+  };
+
+  // Extract recipe properties from recipeId
+  if (typeof transformedMealPlan.recipeId === 'object') {
+    // Create a recipe object to maintain reference to the original recipe
+    transformedMealPlan.recipe = { ...transformedMealPlan.recipeId };
+
+    // Copy recipe properties to the root level
+    const recipeIdObj = transformedMealPlan.recipeId;
+    for (const key in recipeIdObj) {
+      if (key !== '_id' && key !== '__v') {
+        transformedMealPlan[key] = recipeIdObj[key];
+      }
+    }
+
+    // Store just the ID string in recipeId
+    transformedMealPlan.recipeId = recipeIdObj._id;
+  }
+
+  return transformedMealPlan;
+};
+
 const MealPlanController = {
   // 获取用户指定日期范围内的膳食计划
   async getMealPlans(req, res) {
@@ -20,7 +63,10 @@ const MealPlanController = {
         startDate,
         endDate,
       );
-      res.json(mealPlans);
+
+      // Transform the data structure before sending the response
+      const transformedMealPlans = transformMealPlans(mealPlans);
+      res.json(transformedMealPlans);
     } catch (error) {
       console.error('Error getting meal plans:', error);
       res.status(500).json({ error: 'Failed to get meal plans' });
@@ -40,7 +86,10 @@ const MealPlanController = {
       }
 
       const mealPlans = await MealPlanService.getDailyMealPlan(userId, date);
-      res.json(mealPlans);
+
+      // Transform the data structure before sending the response
+      const transformedMealPlans = transformMealPlans(mealPlans);
+      res.json(transformedMealPlans);
     } catch (error) {
       console.error('Error getting daily meal plan:', error);
       res.status(500).json({ error: 'Failed to get daily meal plan' });
@@ -74,7 +123,9 @@ const MealPlanController = {
         return res.status(404).json({ error: 'Meal plan not found' });
       }
 
-      res.json(mealPlan);
+      // Transform the data structure before sending the response
+      const transformedMealPlan = transformMealPlans(mealPlan);
+      res.json(transformedMealPlan);
     } catch (error) {
       console.error('Error getting meal plan:', error);
       res.status(500).json({ error: 'Failed to get meal plan' });
@@ -216,7 +267,10 @@ const MealPlanController = {
         req.userId || req.query.userId || '000000000000000000000001';
 
       const mealPlans = await MealPlanService.getCurrentWeekMealPlans(userId);
-      res.json(mealPlans);
+
+      // Transform the data structure before sending the response
+      const transformedMealPlans = transformMealPlans(mealPlans);
+      res.json(transformedMealPlans);
     } catch (error) {
       console.error('Error getting current week meal plans:', error);
       res.status(500).json({ error: 'Failed to get current week meal plans' });
@@ -235,6 +289,12 @@ const MealPlanController = {
         userId,
         id,
       );
+
+      // If there's a mealPlan property in the result, transform it
+      if (result && result.mealPlan) {
+        result.mealPlan = transformMealPlans(result.mealPlan);
+      }
+
       res.json(result);
     } catch (error) {
       console.error('Error checking ingredient availability:', error);
@@ -280,7 +340,6 @@ const MealPlanController = {
         console.warn('Could not get meal plan info:', e.message);
       }
 
-      // 如果没有提供食材数据，尝试获取缺货食材
       if (
         !ingredients ||
         !Array.isArray(ingredients) ||

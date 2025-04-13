@@ -169,7 +169,7 @@ class RecipeStore {
   // Add a recipe to meal plan
   async addToMealPlan(recipeId, date, mealType, servings) {
     try {
-      await api.post('/mealplan/add', {
+      await api.post('/meal-plans', {
         recipeId,
         date,
         mealType,

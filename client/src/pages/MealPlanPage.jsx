@@ -90,6 +90,14 @@ const MealPlanPage = observer(() => {
         formatDateForAPI(dateRange.startDate),
         formatDateForAPI(dateRange.endDate)
       );
+      
+      // Add debug logging to check the data format
+      console.log('Fetched meal plans:', mealPlanStore.mealPlans);
+      if (mealPlanStore.mealPlans.length > 0) {
+        console.log('Sample meal plan date format:', 
+          mealPlanStore.mealPlans[0].date, 
+          'typeof:', typeof mealPlanStore.mealPlans[0].date);
+      }
     } catch {
       setError('加载菜单失败，请稍后重试');
     } finally {
@@ -316,9 +324,16 @@ const MealPlanPage = observer(() => {
   
   const getMealsForDateAndType = (date, mealType) => {
     const formattedDate = formatDateForAPI(date);
-    return mealPlanStore.mealPlans.filter(
-      meal => meal.date === formattedDate && meal.mealType === mealType
-    );
+    return mealPlanStore.mealPlans.filter(meal => {
+      // Get just the date part from the meal's date, regardless of its format
+      const mealDateStr = meal.date instanceof Date 
+        ? formatDateForAPI(meal.date) 
+        : typeof meal.date === 'string' 
+          ? meal.date.split('T')[0] 
+          : null;
+      
+      return mealDateStr === formattedDate && meal.mealType === mealType;
+    });
   };
   
   // Recipe ingredients dialog handlers
@@ -326,8 +341,20 @@ const MealPlanPage = observer(() => {
     setCurrentMeal(meal);
     
     try {
-      // If meal has recipe ID but no ingredients, fetch them from the API
-      if (meal.recipe && meal.recipe.id && (!meal.recipe.ingredients || meal.recipe.ingredients.length === 0)) {
+      // Get ingredients based on the new data structure
+      if (meal.ingredients && meal.ingredients.length > 0) {
+        // If ingredients are already at root level, use them directly
+        setEditedIngredients([...meal.ingredients]);
+      } else if (meal.recipe && meal.recipe.ingredients && meal.recipe.ingredients.length > 0) {
+        // If ingredients are in the recipe object, use them from there
+        setEditedIngredients([...meal.recipe.ingredients]);
+      } else if (meal.recipeId && typeof meal.recipeId !== 'string') {
+        // For backwards compatibility - if recipeId is still an object
+        if (meal.recipeId.ingredients && meal.recipeId.ingredients.length > 0) {
+          setEditedIngredients([...meal.recipeId.ingredients]);
+        }
+      } else if (meal.recipe && meal.recipe.id) {
+        // If meal has recipe ID but no ingredients, fetch them from the API
         console.log('Fetching recipe details for:', meal.recipe.id);
         setRecipeDetailsLoading(true);
         
@@ -341,9 +368,6 @@ const MealPlanPage = observer(() => {
           // If no ingredients found, set empty array or default ingredient
           setEditedIngredients([{ ...initialIngredient }]);
         }
-      } else if (meal.recipe && meal.recipe.ingredients) {
-        // If ingredients are already in the meal object, use them directly
-        setEditedIngredients([...meal.recipe.ingredients]);
       } else {
         // No recipe or ingredients, set default empty ingredient
         setEditedIngredients([{ ...initialIngredient }]);
@@ -384,13 +408,23 @@ const MealPlanPage = observer(() => {
   };
   
   const handleSaveIngredients = async () => {
-    if (!currentMeal || !currentMeal.recipe) return;
+    if (!currentMeal) return;
     
     setSavingIngredients(true);
     try {
+      // Determine the recipe ID based on the new structure
+      const recipeId = 
+        (currentMeal.recipe && currentMeal.recipe.id) || // Recipe object with ID
+        (typeof currentMeal.recipeId === 'string' ? currentMeal.recipeId : // String recipeId
+         (currentMeal.recipeId && currentMeal.recipeId._id) || // Old structure object recipeId
+          null);
+      
+      if (!recipeId) {
+        throw new Error('Recipe ID not found');
+      }
+      
       // Here we would call an API to update the recipe ingredients
-      // For now, we'll just update the local state
-      await recipeStore.updateRecipeIngredients(currentMeal.recipe.id, editedIngredients);
+      await recipeStore.updateRecipeIngredients(recipeId, editedIngredients);
       
       // Refresh meal plans to get updated data
       await fetchMeals();
@@ -684,7 +718,7 @@ const MealPlanPage = observer(() => {
                           <List dense disablePadding>
                             {mealsForType.map(meal => (
                               <ListItem 
-                                key={meal.id} 
+                                key={meal.id || meal._id} 
                                 divider
                                 sx={{
                                   borderRadius: 1,
@@ -722,7 +756,7 @@ const MealPlanPage = observer(() => {
                                                ? 'warning.main' : 'inherit'
                                       }}
                                     >
-                                      {meal.recipe?.name || '未知菜品'}
+                                      {meal.name || (meal.recipe && meal.recipe.name) || '未知菜品'}
                                     </Typography>
                                   }
                                   secondary={
@@ -890,7 +924,7 @@ const MealPlanPage = observer(() => {
         fullWidth
       >
         <DialogTitle>
-          {currentMeal?.recipe?.name || '食谱详情'} - 食材列表
+          {currentMeal?.name || (currentMeal?.recipe?.name) || '食谱详情'} - 食材列表
         </DialogTitle>
         <DialogContent>
           {recipeDetailsLoading ? (
