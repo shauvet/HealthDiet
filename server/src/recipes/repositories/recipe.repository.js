@@ -53,7 +53,41 @@ class RecipeRepository {
 
   // 根据ID获取食谱详情
   async getRecipeById(id) {
-    return await Recipe.findById(id).exec();
+    try {
+      console.log(`获取食谱详情: ${id}`);
+
+      // Handle different ID formats
+      let query = {};
+
+      // If id is a valid ObjectId, use it directly
+      if (mongoose.Types.ObjectId.isValid(id) && /^[0-9a-fA-F]{24}$/.test(id)) {
+        query._id = mongoose.Types.ObjectId(id);
+      }
+      // For numeric IDs (like "1", "2", etc.)
+      else if (!isNaN(parseInt(id))) {
+        // Use the mockId field for numeric IDs
+        query.mockId = parseInt(id);
+      } else {
+        // If ID is neither valid ObjectId nor numeric, use the string as is
+        query._id = id;
+      }
+
+      console.log('查询条件:', JSON.stringify(query));
+
+      // Try to find the recipe in the database
+      const recipe = await Recipe.findOne(query);
+
+      if (recipe) {
+        console.log(`找到食谱: ${recipe.name}`);
+        return recipe;
+      }
+
+      console.log(`在数据库中未找到ID为 ${id} 的食谱`);
+      return null;
+    } catch (error) {
+      console.error('Error in getRecipeById:', error);
+      throw error;
+    }
   }
 
   // 创建新食谱
@@ -228,7 +262,7 @@ class RecipeRepository {
         mongoose.Types.ObjectId.isValid(recipeId) &&
         /^[0-9a-fA-F]{24}$/.test(recipeId)
       ) {
-        query._id = recipeId;
+        query._id = mongoose.Types.ObjectId(recipeId);
       }
       // For numeric IDs (like "1", "2", etc.)
       else if (!isNaN(parseInt(recipeId))) {
@@ -245,6 +279,8 @@ class RecipeRepository {
       const existingRecipe = await Recipe.findOne(query);
       console.log('现有食谱:', existingRecipe ? 'Found' : 'Not found');
 
+      let updatedRecipe = null;
+
       // If the recipe doesn't exist and it's a numeric ID, create a new recipe
       if (!existingRecipe && !isNaN(parseInt(recipeId))) {
         console.log(`Creating new recipe with mockId ${recipeId}`);
@@ -254,23 +290,21 @@ class RecipeRepository {
           description: '',
           cookingTime: 30,
           servings: 2,
-          ingredients,
+          ingredients: ingredients,
           steps: ['将食材混合在一起'], // Add a default non-empty step to pass validation
           mockId: parseInt(recipeId),
           createdBy: '000000000000000000000001', // Default user ID
         });
 
-        const savedRecipe = await newRecipe.save();
-        console.log(`新建食谱成功: ${savedRecipe._id}`);
-        return savedRecipe;
+        updatedRecipe = await newRecipe.save();
+        console.log(`新建食谱成功: ${updatedRecipe._id}`);
       }
-
       // If recipe exists, update it
-      if (existingRecipe) {
-        const updatedRecipe = await Recipe.findOneAndUpdate(
+      else if (existingRecipe) {
+        updatedRecipe = await Recipe.findOneAndUpdate(
           query,
-          { $set: { ingredients } },
-          { new: true }, // 返回更新后的文档
+          { $set: { ingredients: ingredients } },
+          { new: true, runValidators: true }, // 返回更新后的文档并运行验证
         );
 
         if (!updatedRecipe) {
@@ -279,6 +313,20 @@ class RecipeRepository {
         }
 
         console.log(`更新食谱成功: ${updatedRecipe._id}`);
+      }
+
+      // Only check inventory if we have a valid recipe update
+      if (updatedRecipe) {
+        try {
+          // Check inventory and add missing ingredients to shopping list
+          await this.checkInventoryAndAddToShoppingList(
+            ingredients,
+            updatedRecipe.createdBy,
+          );
+        } catch (inventoryError) {
+          // Log error but don't fail the entire operation
+          console.error('Error checking inventory:', inventoryError);
+        }
         return updatedRecipe;
       }
 
@@ -294,8 +342,101 @@ class RecipeRepository {
           model: error.model?.modelName,
           reason: error.reason?.message,
         });
+      } else if (error.name === 'ValidationError') {
+        console.error('ValidationError Details:', {
+          errors: Object.keys(error.errors).map((field) => ({
+            field,
+            message: error.errors[field].message,
+          })),
+        });
       }
       throw error;
+    }
+  }
+
+  // 检查库存并添加缺少的食材到购物清单
+  async checkInventoryAndAddToShoppingList(ingredients, userId) {
+    try {
+      // 导入所需模型
+      const InventoryRepository = require('../../inventory/repositories/inventory.repository');
+
+      if (
+        !ingredients ||
+        !Array.isArray(ingredients) ||
+        ingredients.length === 0
+      ) {
+        console.log('没有食材需要检查库存');
+        return;
+      }
+
+      // 获取用户的库存
+      const userInventory = await InventoryRepository.getUserInventory(userId);
+      console.log(`用户库存数量: ${userInventory.length}`);
+
+      // 检查每个食材
+      for (const recipeIngredient of ingredients) {
+        if (!recipeIngredient.name || recipeIngredient.quantity === undefined) {
+          console.log('跳过无效食材:', recipeIngredient);
+          continue;
+        }
+
+        // 在库存中查找食材 (不区分大小写)
+        const inventoryItem = userInventory.find(
+          (item) =>
+            item.name.toLowerCase() === recipeIngredient.name.toLowerCase(),
+        );
+
+        // 如果食材不在库存中或者数量不足
+        if (
+          !inventoryItem ||
+          inventoryItem.quantity < recipeIngredient.quantity
+        ) {
+          // 计算需要添加到购物清单的数量
+          const requiredQuantity = !inventoryItem
+            ? recipeIngredient.quantity
+            : recipeIngredient.quantity - inventoryItem.quantity;
+
+          // 查找购物清单中是否已有该食材
+          const shoppingList =
+            await InventoryRepository.getUserShoppingList(userId);
+          const existingShoppingItem = shoppingList.find(
+            (item) =>
+              item.name.toLowerCase() === recipeIngredient.name.toLowerCase(),
+          );
+
+          if (existingShoppingItem) {
+            // 如果购物清单中已有该食材，更新数量
+            await InventoryRepository.updateShoppingItem(
+              existingShoppingItem._id,
+              { quantity: existingShoppingItem.quantity + requiredQuantity },
+            );
+            console.log(
+              `更新购物清单食材: ${recipeIngredient.name}, 新数量: ${existingShoppingItem.quantity + requiredQuantity}`,
+            );
+          } else {
+            // 如果购物清单中没有该食材，添加新的购物项
+            const shoppingItemData = {
+              name: recipeIngredient.name,
+              quantity: requiredQuantity,
+              unit: recipeIngredient.unit || 'g', // 使用食谱中的单位，如果没有则默认为"g"
+              category: recipeIngredient.category || 'others', // 使用食谱中的分类，如果没有则默认为"others"
+              userId: userId,
+            };
+
+            await InventoryRepository.addToShoppingList(shoppingItemData);
+            console.log(
+              `添加食材到购物清单: ${recipeIngredient.name}, 数量: ${requiredQuantity}`,
+            );
+          }
+        } else {
+          console.log(`库存中已有足够的 ${recipeIngredient.name}`);
+        }
+      }
+
+      console.log('库存检查完成，已将缺少的食材添加到购物清单');
+    } catch (error) {
+      console.error('检查库存并添加到购物清单时出错:', error);
+      // 这里我们不抛出错误，因为这是一个辅助功能，不应该影响主要功能
     }
   }
 

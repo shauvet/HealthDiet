@@ -227,6 +227,30 @@ class RecipeStore {
       });
     }
   }
+  
+  // Get a single recipe by ID
+  async getRecipeById(recipeId) {
+    runInAction(() => {
+      this.loading = true;
+    });
+    try {
+      const response = await api.get(`/recipes/${recipeId}`);
+      runInAction(() => {
+        this.error = null;
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching recipe details:', error);
+      runInAction(() => {
+        this.error = error.message;
+      });
+      return null;
+    } finally {
+      runInAction(() => {
+        this.loading = false;
+      });
+    }
+  }
 }
 
 export default new RecipeStore(); 

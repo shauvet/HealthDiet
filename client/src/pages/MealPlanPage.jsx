@@ -276,14 +276,39 @@ const MealPlanPage = observer(() => {
   };
   
   // Recipe ingredients dialog handlers
-  const handleOpenIngredientsDialog = (meal) => {
+  const handleOpenIngredientsDialog = async (meal) => {
     setCurrentMeal(meal);
-    if (meal.recipe && meal.recipe.ingredients) {
-      setEditedIngredients([...meal.recipe.ingredients]);
-    } else {
-      setEditedIngredients([]);
+    
+    try {
+      // If meal has recipe ID but no ingredients, fetch them from the API
+      if (meal.recipe && meal.recipe.id && (!meal.recipe.ingredients || meal.recipe.ingredients.length === 0)) {
+        console.log('Fetching recipe details for:', meal.recipe.id);
+        setLoading(true);
+        
+        // Fetch full recipe details using the recipe ID
+        const recipeDetails = await recipeStore.getRecipeById(meal.recipe.id);
+        
+        if (recipeDetails && recipeDetails.ingredients && recipeDetails.ingredients.length > 0) {
+          // Use the fetched ingredients
+          setEditedIngredients([...recipeDetails.ingredients]);
+        } else {
+          // If no ingredients found, set empty array or default ingredient
+          setEditedIngredients([{ ...initialIngredient }]);
+        }
+      } else if (meal.recipe && meal.recipe.ingredients) {
+        // If ingredients are already in the meal object, use them directly
+        setEditedIngredients([...meal.recipe.ingredients]);
+      } else {
+        // No recipe or ingredients, set default empty ingredient
+        setEditedIngredients([{ ...initialIngredient }]);
+      }
+    } catch (error) {
+      console.error('Error fetching recipe details:', error);
+      setEditedIngredients([{ ...initialIngredient }]);
+    } finally {
+      setLoading(false);
+      setOpenIngredientsDialog(true);
     }
-    setOpenIngredientsDialog(true);
   };
   
   const handleCloseIngredientsDialog = () => {
