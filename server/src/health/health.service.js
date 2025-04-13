@@ -249,7 +249,28 @@ const HealthService = {
         `TianAPI successful data for ${foodName}:`,
         response.data.result,
       );
-      return response.data.result;
+
+      // API返回的是列表，我们取第一个结果
+      const foodData =
+        response.data.result.list && response.data.result.list.length > 0
+          ? response.data.result.list[0]
+          : null;
+
+      if (!foodData) {
+        console.error(`No food data found for ${foodName}`);
+        return null;
+      }
+
+      console.log(`Selected food data for ${foodName}:`, foodData);
+
+      // 转换数据为标准格式
+      const standardizedData = this.mapTianApiDataToStandard(foodData);
+      console.log(
+        `Standardized nutrition data for ${foodName}:`,
+        standardizedData,
+      );
+
+      return standardizedData;
     } catch (error) {
       console.error(
         `Error fetching nutrition data from TianAPI for ${foodName}:`,
@@ -257,6 +278,119 @@ const HealthService = {
       );
       return null;
     }
+  },
+
+  // 将TianAPI的数据映射到标准格式
+  mapTianApiDataToStandard(apiData) {
+    if (!apiData) return null;
+
+    console.log('Original API data:', JSON.stringify(apiData));
+
+    // TianAPI字段映射表 - 转换为人类可读的名称
+    const fieldMapping = {
+      // 基本营养素
+      rl: 'heat', // 热量 (kcal)
+      dbz: 'protein', // 蛋白质 (g)
+      zf: 'fat', // 脂肪 (g)
+      tei: 'carbohydrate', // 碳水化合物 (g)
+      shhf: 'fiber', // 膳食纤维 (g)
+
+      // 维生素
+      va: 'va', // 维生素A (μg)
+      vb1: 'vb1', // 维生素B1 (mg)
+      vb2: 'vb2', // 维生素B2 (mg)
+      vc: 'vc', // 维生素C (mg)
+
+      // 矿物质
+      gai: 'calcium', // 钙 (mg)
+      tie: 'iron', // 铁 (mg)
+      xin: 'zinc', // 锌 (mg)
+      mei: 'magnesium', // 镁 (mg)
+      jia: 'potassium', // 钾 (mg)
+      na: 'sodium', // 钠 (mg)
+
+      // 类别
+      type: 'leixing', // 食物类别
+    };
+
+    // 字段的中文名称展示
+    const fieldDisplayNames = {
+      heat: '热量',
+      protein: '蛋白质',
+      fat: '脂肪',
+      carbohydrate: '碳水化合物',
+      fiber: '膳食纤维',
+      va: '维生素A',
+      vb1: '维生素B1',
+      vb2: '维生素B2',
+      vc: '维生素C',
+      calcium: '钙',
+      iron: '铁',
+      zinc: '锌',
+      magnesium: '镁',
+      potassium: '钾',
+      sodium: '钠',
+      leixing: '食物类别',
+    };
+
+    console.log('Available fields in API data:', Object.keys(apiData));
+
+    // 食物类别映射表
+    const typeMapping = {
+      谷类: '谷物类',
+      薯类淀粉: '谷物类',
+      干豆类: '豆类',
+      蔬菜: '蔬菜类',
+      蔬菜类: '蔬菜',
+      菌藻: '蔬菜类',
+      水果: '水果类',
+      水果类: '水果',
+      坚果种子: '坚果类',
+      畜肉: '肉类',
+      肉类: '肉禽',
+      禽肉: '禽类',
+      禽类: '肉禽',
+      乳类: '乳制品',
+      蛋类: '蛋类',
+      鱼虾蟹贝: '水产',
+      油脂: '油脂类',
+      调味品: '调味品',
+      饮料: '饮料类',
+      零食小吃: '零食类',
+      糖果点心: '糖类',
+      酒精饮料: '酒类',
+    };
+
+    // 转换后的数据
+    const standardData = {};
+
+    // 转换字段
+    for (const [apiField, standardField] of Object.entries(fieldMapping)) {
+      if (apiData[apiField] !== undefined) {
+        // 对于类别字段，进行额外的映射
+        if (apiField === 'type') {
+          standardData[standardField] =
+            typeMapping[apiData[apiField]] || apiData[apiField];
+        } else {
+          standardData[standardField] = apiData[apiField];
+        }
+        console.log(
+          `Mapped ${apiField} (${apiData[apiField]}) to ${standardField}`,
+        );
+      }
+    }
+
+    // 确保至少有一个分类
+    if (!standardData.leixing) {
+      standardData.leixing = '其他';
+      console.log('Used default category: 其他');
+    }
+
+    // 添加字段的显示名称
+    standardData.displayNames = fieldDisplayNames;
+
+    console.log('Final standardized data:', standardData);
+    return standardData;
   },
 
   // 从用户已点菜单获取营养数据
@@ -345,26 +479,49 @@ const HealthService = {
         fats: 0,
       };
 
-      // 食材类别映射
+      // 食材类别映射表
       const categoryMapping = {
         谷物类: 'grains',
         米面豆: 'grains',
         杂粮: 'grains',
+        谷类: 'grains',
         蔬菜类: 'vegetables',
         蔬菜: 'vegetables',
+        菌藻: 'vegetables',
         水果类: 'fruits',
         水果: 'fruits',
         肉禽类: 'protein',
         肉类: 'protein',
         禽类: 'protein',
+        畜肉: 'protein',
+        禽肉: 'protein',
         鱼虾类: 'protein',
         水产: 'protein',
+        鱼虾蟹贝: 'protein',
         蛋类: 'protein',
         豆类: 'protein',
+        干豆类: 'protein',
         奶类: 'dairy',
+        乳类: 'dairy',
         乳制品: 'dairy',
         油脂类: 'fats',
+        油脂: 'fats',
         调味品: 'fats',
+      };
+
+      // 字段的中文名称展示
+      const displayNames = {
+        calories: '热量',
+        protein: '蛋白质',
+        fat: '脂肪',
+        carbs: '碳水化合物',
+        fiber: '膳食纤维',
+        grains: '谷物',
+        vegetables: '蔬菜',
+        fruits: '水果',
+        proteinFood: '蛋白质食物',
+        dairy: '乳制品',
+        fats: '油脂',
       };
 
       // 处理每个食材
@@ -418,8 +575,8 @@ const HealthService = {
 
         // 统计食材类别，用于饮食结构计算
         if (nutritionData.leixing) {
-          const category = categoryMapping[nutritionData.leixing] || 'others';
-          if (dietStructure[category] !== undefined) {
+          const category = categoryMapping[nutritionData.leixing] || null;
+          if (category && dietStructure[category] !== undefined) {
             dietStructure[category] += 1;
           }
         }
@@ -479,45 +636,76 @@ const HealthService = {
           max: 2200,
           unit: 'kcal',
           color: '#f44336',
+          displayName: displayNames['calories'],
         },
         protein: {
           value: Math.round(nutritionSummary.protein),
           max: 80,
           unit: 'g',
           color: '#3f51b5',
+          displayName: displayNames['protein'],
         },
         fat: {
           value: Math.round(nutritionSummary.fat),
           max: 65,
           unit: 'g',
           color: '#ff9800',
+          displayName: displayNames['fat'],
         },
         carbs: {
           value: Math.round(nutritionSummary.carbs),
           max: 300,
           unit: 'g',
           color: '#4caf50',
+          displayName: displayNames['carbs'],
         },
         fiber: {
           value: Math.round(nutritionSummary.fiber),
           max: 25,
           unit: 'g',
           color: '#9c27b0',
+          displayName: displayNames['fiber'],
         },
       };
 
       // 格式化饮食结构数据
       const formattedDietStructure = {
-        grains: { value: dietStructure.grains, recommended: 25, unit: '%' },
+        grains: {
+          value: dietStructure.grains,
+          recommended: 25,
+          unit: '%',
+          displayName: displayNames['grains'],
+        },
         vegetables: {
           value: dietStructure.vegetables,
           recommended: 35,
           unit: '%',
+          displayName: displayNames['vegetables'],
         },
-        fruits: { value: dietStructure.fruits, recommended: 15, unit: '%' },
-        protein: { value: dietStructure.protein, recommended: 20, unit: '%' },
-        dairy: { value: dietStructure.dairy, recommended: 15, unit: '%' },
-        fats: { value: dietStructure.fats, recommended: 10, unit: '%' },
+        fruits: {
+          value: dietStructure.fruits,
+          recommended: 15,
+          unit: '%',
+          displayName: displayNames['fruits'],
+        },
+        protein: {
+          value: dietStructure.protein,
+          recommended: 20,
+          unit: '%',
+          displayName: displayNames['proteinFood'],
+        },
+        dairy: {
+          value: dietStructure.dairy,
+          recommended: 15,
+          unit: '%',
+          displayName: displayNames['dairy'],
+        },
+        fats: {
+          value: dietStructure.fats,
+          recommended: 10,
+          unit: '%',
+          displayName: displayNames['fats'],
+        },
       };
 
       return {
