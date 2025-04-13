@@ -147,7 +147,10 @@ const HealthPage = observer(() => {
       healthStore.setCustomDateRange(customDateRange.startDate, customDateRange.endDate);
     }
     
-    healthStore.fetchAllHealthData();
+    healthStore.fetchAllHealthData().then(() => {
+      console.log('Fetched nutrition data:', healthStore.nutrientData);
+      console.log('Fetched diet structure:', healthStore.dietStructure);
+    });
   }, [timeRange, customDateRange]);
   
   const handleTabChange = (event, newValue) => {

@@ -20,10 +20,16 @@ router.get('/nutrition/minerals', HealthController.getMineralIntake);
 // 获取饮食结构数据
 router.get('/diet/structure', HealthController.getDietStructure);
 
+// 从已点菜单获取营养数据
+router.get('/nutrition/mealplans', HealthController.getMealPlanNutritionData);
+
 // 更新营养目标
 router.post('/nutrition/goals', HealthController.updateNutritionGoals);
 
 // 添加每日营养数据
 router.post('/nutrition/daily', HealthController.addDailyNutrition);
+
+// 测试TianAPI调用
+router.get('/test-tianapi', HealthController.testTianApi);
 
 module.exports = router;

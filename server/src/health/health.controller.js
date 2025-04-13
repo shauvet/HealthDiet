@@ -135,6 +135,41 @@ const HealthController = {
       res.status(500).json({ error: 'Failed to add daily nutrition' });
     }
   },
+
+  // 获取已点菜单营养数据
+  async getMealPlanNutritionData(req, res) {
+    try {
+      // 从请求中获取用户ID
+      const userId =
+        req.userId || req.query.userId || '000000000000000000000001';
+
+      const data = await HealthService.getMealPlanNutritionData(userId);
+      res.json(data);
+    } catch (error) {
+      console.error('Error getting meal plan nutrition data:', error);
+      res.status(500).json({ error: 'Failed to get meal plan nutrition data' });
+    }
+  },
+
+  // 测试TianAPI调用
+  async testTianApi(req, res) {
+    try {
+      const { foodName } = req.query;
+
+      if (!foodName) {
+        return res.status(400).json({ error: '缺少食物名称参数' });
+      }
+
+      console.log(`测试TianAPI调用，食物名称: ${foodName}`);
+      const data = await HealthService.fetchFoodNutrition(foodName);
+      res.json({ success: true, data });
+    } catch (error) {
+      console.error('测试TianAPI调用出错:', error);
+      res
+        .status(500)
+        .json({ error: '测试TianAPI调用失败', message: error.message });
+    }
+  },
 };
 
 module.exports = HealthController;

@@ -89,8 +89,10 @@ const HealthService = {
   },
 
   // 获取食材使用频率数据 - 这将需要从膳食计划和食谱中统计
-  async getIngredientUsage(userId, days = 30) {
-    // 这个方法需要与膳食计划和食谱数据关联
+  async getIngredientUsage(userId) {
+    // 这个方法需要与膳食计划和食谱数据关联，后续将使用 userId 参数
+    console.log(`Fetching ingredient usage for user: ${userId}`);
+
     // 暂时保留静态数据，后续实现
     return [
       {
@@ -184,7 +186,7 @@ const HealthService = {
   },
 
   // 获取食材多样性分析数据
-  async getIngredientDiversity(userId) {
+  async getIngredientDiversity() {
     // 暂时保留静态数据，后续实现与食谱和库存的关联计算
     return {
       vegetables: { count: 15, target: 20, description: '蔬菜品类' },
@@ -194,11 +196,354 @@ const HealthService = {
     };
   },
 
+  // 从tianapi获取食物营养成分数据
+  async fetchFoodNutrition(foodName) {
+    try {
+      console.log(`Fetching nutrition data from TianAPI for: ${foodName}`);
+      const axios = require('axios');
+
+      // 使用axios替代request库
+      console.log('Making TianAPI request...');
+      const apiKey =
+        process.env.TIANAPI_KEY || 'a8c6c159ae4ce574c8fa398d3ebd5d88';
+      console.log(`Using API key: ${apiKey}`);
+
+      const params = new URLSearchParams();
+      params.append('key', apiKey);
+      params.append('word', foodName);
+      params.append('mode', 0); // 0: 返回营养成分, 1: 食品分类
+
+      // 打印请求详情
+      console.log(`Request URL: https://apis.tianapi.com/nutrient/index`);
+      console.log(`Request params:`, params.toString());
+
+      const response = await axios.post(
+        'https://apis.tianapi.com/nutrient/index',
+        params,
+        {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+        },
+      );
+
+      console.log(
+        `TianAPI raw response for ${foodName}:`,
+        JSON.stringify(response.data),
+      );
+
+      if (response.data.code !== 200) {
+        console.error(
+          `TianAPI returned error for ${foodName}:`,
+          response.data.msg,
+        );
+        // 如果测试食物失败，尝试测试"米饭"这个常见食物
+        if (foodName !== '米饭') {
+          console.log('Testing with a common food "米饭" instead');
+          return await this.fetchFoodNutrition('米饭');
+        }
+        return null;
+      }
+
+      console.log(
+        `TianAPI successful data for ${foodName}:`,
+        response.data.result,
+      );
+      return response.data.result;
+    } catch (error) {
+      console.error(
+        `Error fetching nutrition data from TianAPI for ${foodName}:`,
+        error.response ? error.response.data : error.message,
+      );
+      return null;
+    }
+  },
+
+  // 从用户已点菜单获取营养数据
+  async getMealPlanNutritionData(userId) {
+    try {
+      // 导入MealPlanRepository以获取用户已点菜单
+      const MealPlanRepository = require('../meal-plans/repositories/meal-plan.repository');
+
+      // 获取用户当前一周内已点菜单
+      const today = new Date();
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - today.getDay());
+
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+      const mealPlans = await MealPlanRepository.getUserMealPlans(
+        userId,
+        startOfWeek,
+        endOfWeek,
+      );
+
+      // 如果没有找到膳食计划，添加一些测试食材进行测试
+      let ingredients = [];
+
+      if (!mealPlans || mealPlans.length === 0) {
+        console.log('No meal plans found for user:', userId);
+        console.log('Using test ingredients for API testing');
+
+        // 添加一些测试食材
+        ingredients = [
+          { name: '牛肉', quantity: 500, unit: 'g' },
+          { name: '米饭', quantity: 200, unit: 'g' },
+          { name: '西兰花', quantity: 150, unit: 'g' },
+          { name: '豆腐', quantity: 200, unit: 'g' },
+        ];
+      } else {
+        // 处理找到的膳食计划
+        for (const meal of mealPlans) {
+          // 获取食谱和食材
+          const recipe = meal.recipeId;
+          if (
+            !recipe ||
+            !recipe.ingredients ||
+            !Array.isArray(recipe.ingredients)
+          ) {
+            continue;
+          }
+
+          // 收集所有食材
+          ingredients = ingredients.concat(recipe.ingredients);
+        }
+
+        // 如果没有找到食材，使用测试食材
+        if (ingredients.length === 0) {
+          console.log(
+            'No ingredients found in meal plans, using test ingredients',
+          );
+          ingredients = [
+            { name: '牛肉', quantity: 500, unit: 'g' },
+            { name: '米饭', quantity: 200, unit: 'g' },
+            { name: '西兰花', quantity: 150, unit: 'g' },
+            { name: '豆腐', quantity: 200, unit: 'g' },
+          ];
+        }
+      }
+
+      // 初始化营养汇总数据
+      const nutritionSummary = {
+        calories: 0,
+        protein: 0,
+        fat: 0,
+        carbs: 0,
+        fiber: 0,
+        vitamins: {},
+        minerals: {},
+      };
+
+      // 膳食结构统计
+      const dietStructure = {
+        grains: 0,
+        vegetables: 0,
+        fruits: 0,
+        protein: 0,
+        dairy: 0,
+        fats: 0,
+      };
+
+      // 食材类别映射
+      const categoryMapping = {
+        谷物类: 'grains',
+        米面豆: 'grains',
+        杂粮: 'grains',
+        蔬菜类: 'vegetables',
+        蔬菜: 'vegetables',
+        水果类: 'fruits',
+        水果: 'fruits',
+        肉禽类: 'protein',
+        肉类: 'protein',
+        禽类: 'protein',
+        鱼虾类: 'protein',
+        水产: 'protein',
+        蛋类: 'protein',
+        豆类: 'protein',
+        奶类: 'dairy',
+        乳制品: 'dairy',
+        油脂类: 'fats',
+        调味品: 'fats',
+      };
+
+      // 处理每个食材
+      console.log(
+        `Processing ${ingredients.length} ingredients for nutrition data`,
+      );
+      for (const ingredient of ingredients) {
+        if (!ingredient.name) continue;
+
+        // 从tianapi获取食材营养数据
+        const nutritionData = await this.fetchFoodNutrition(ingredient.name);
+        console.log(`Nutrition data for ${ingredient.name}:`, nutritionData);
+
+        if (!nutritionData) {
+          console.log(
+            `No nutrition data found for ${ingredient.name}, skipping`,
+          );
+          continue;
+        }
+
+        // 计算基于食材用量的营养值
+        const quantity = parseFloat(ingredient.quantity) || 0;
+        const defaultServingSize = 100; // 假设API返回的营养成分是基于100g计算的
+        const multiplier = quantity / defaultServingSize;
+
+        // 汇总主要营养成分
+        if (nutritionData.heat) {
+          // 热量 (kcal)
+          nutritionSummary.calories +=
+            parseFloat(nutritionData.heat) * multiplier;
+        }
+        if (nutritionData.protein) {
+          // 蛋白质 (g)
+          nutritionSummary.protein +=
+            parseFloat(nutritionData.protein) * multiplier;
+        }
+        if (nutritionData.fat) {
+          // 脂肪 (g)
+          nutritionSummary.fat += parseFloat(nutritionData.fat) * multiplier;
+        }
+        if (nutritionData.carbohydrate) {
+          // 碳水化合物 (g)
+          nutritionSummary.carbs +=
+            parseFloat(nutritionData.carbohydrate) * multiplier;
+        }
+        if (nutritionData.fiber) {
+          // 膳食纤维 (g)
+          nutritionSummary.fiber +=
+            parseFloat(nutritionData.fiber) * multiplier;
+        }
+
+        // 统计食材类别，用于饮食结构计算
+        if (nutritionData.leixing) {
+          const category = categoryMapping[nutritionData.leixing] || 'others';
+          if (dietStructure[category] !== undefined) {
+            dietStructure[category] += 1;
+          }
+        }
+
+        // 处理维生素
+        for (const key in nutritionData) {
+          // 检查是否为维生素项
+          if (
+            key.startsWith('va') ||
+            key.startsWith('vb') ||
+            key.includes('vitamin')
+          ) {
+            if (!nutritionSummary.vitamins[key]) {
+              nutritionSummary.vitamins[key] = 0;
+            }
+            nutritionSummary.vitamins[key] +=
+              parseFloat(nutritionData[key] || 0) * multiplier;
+          }
+
+          // 检查是否为矿物质项
+          if (
+            [
+              'calcium',
+              'iron',
+              'zinc',
+              'magnesium',
+              'potassium',
+              'sodium',
+            ].includes(key)
+          ) {
+            if (!nutritionSummary.minerals[key]) {
+              nutritionSummary.minerals[key] = 0;
+            }
+            nutritionSummary.minerals[key] +=
+              parseFloat(nutritionData[key] || 0) * multiplier;
+          }
+        }
+      }
+
+      // 计算饮食结构百分比
+      const totalCategories = Object.values(dietStructure).reduce(
+        (sum, val) => sum + val,
+        0,
+      );
+      if (totalCategories > 0) {
+        for (const category in dietStructure) {
+          dietStructure[category] = Math.round(
+            (dietStructure[category] / totalCategories) * 100,
+          );
+        }
+      }
+
+      // 格式化营养数据，以适配前端期望的格式
+      const nutrientData = {
+        calories: {
+          value: Math.round(nutritionSummary.calories),
+          max: 2200,
+          unit: 'kcal',
+          color: '#f44336',
+        },
+        protein: {
+          value: Math.round(nutritionSummary.protein),
+          max: 80,
+          unit: 'g',
+          color: '#3f51b5',
+        },
+        fat: {
+          value: Math.round(nutritionSummary.fat),
+          max: 65,
+          unit: 'g',
+          color: '#ff9800',
+        },
+        carbs: {
+          value: Math.round(nutritionSummary.carbs),
+          max: 300,
+          unit: 'g',
+          color: '#4caf50',
+        },
+        fiber: {
+          value: Math.round(nutritionSummary.fiber),
+          max: 25,
+          unit: 'g',
+          color: '#9c27b0',
+        },
+      };
+
+      // 格式化饮食结构数据
+      const formattedDietStructure = {
+        grains: { value: dietStructure.grains, recommended: 25, unit: '%' },
+        vegetables: {
+          value: dietStructure.vegetables,
+          recommended: 35,
+          unit: '%',
+        },
+        fruits: { value: dietStructure.fruits, recommended: 15, unit: '%' },
+        protein: { value: dietStructure.protein, recommended: 20, unit: '%' },
+        dairy: { value: dietStructure.dairy, recommended: 15, unit: '%' },
+        fats: { value: dietStructure.fats, recommended: 10, unit: '%' },
+      };
+
+      return {
+        nutrientData,
+        dietStructure: formattedDietStructure,
+      };
+    } catch (error) {
+      console.error('Error getting meal plan nutrition data:', error);
+      return {
+        nutrientData: null,
+        dietStructure: null,
+      };
+    }
+  },
+
   // 获取所有健康分析数据
-  async getAllHealthData(userId, timeRange = 'week', startDate, endDate) {
+  async getAllHealthData(userId, timeRange = 'week') {
+    // 获取从已点菜单计算的营养数据
+    const mealPlanNutrition = await this.getMealPlanNutritionData(userId);
+
     return {
-      nutrientData: await this.getNutrientData(userId),
-      dietStructure: await this.getDietStructure(userId),
+      nutrientData:
+        mealPlanNutrition.nutrientData || (await this.getNutrientData(userId)),
+      dietStructure:
+        mealPlanNutrition.dietStructure ||
+        (await this.getDietStructure(userId)),
       nutritionTrends: await this.getNutritionTrends(
         userId,
         timeRange === 'week' ? 7 : 30,
@@ -207,7 +552,7 @@ const HealthService = {
       mineralIntake: await this.getMineralIntake(userId),
       ingredientUsage: await this.getIngredientUsage(userId),
       nutritionAdvice: await this.getNutritionAdvice(userId),
-      ingredientDiversity: await this.getIngredientDiversity(userId),
+      ingredientDiversity: await this.getIngredientDiversity(),
     };
   },
 

@@ -6,6 +6,14 @@ const api = axios.create({
   baseURL: 'http://localhost:3001/api'
 });
 
+// 添加请求拦截器，设置authorization header
+api.interceptors.request.use(config => {
+  // 从localStorage获取token，或使用示例token
+  const token = localStorage.getItem('authToken') || 'sample-token-1744511696810';
+  config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 class HealthStore {
   loading = false;
   error = null;
@@ -39,6 +47,31 @@ class HealthStore {
     this.customDateRange = { startDate, endDate };
   }
 
+  // 获取已点菜单的营养数据
+  async fetchMealPlanNutritionData() {
+    try {
+      this.loading = true;
+      this.error = null;
+
+      const response = await api.get('/health/nutrition/mealplans');
+      
+      runInAction(() => {
+        const data = response.data;
+        this.nutrientData = data.nutrientData;
+        this.dietStructure = data.dietStructure;
+        this.loading = false;
+      });
+      
+      return response.data;
+    } catch (error) {
+      runInAction(() => {
+        this.error = error.message;
+        this.loading = false;
+      });
+      return null;
+    }
+  }
+
   // 获取所有健康数据
   async fetchAllHealthData() {
     try {
@@ -53,12 +86,23 @@ class HealthStore {
         })
       };
 
+      // 先获取已点菜单的营养数据
+      await this.fetchMealPlanNutritionData();
+      
+      // 再获取其他健康数据
       const response = await api.get('/health/all', { params });
       
       runInAction(() => {
         const data = response.data;
-        this.nutrientData = data.nutrientData;
-        this.dietStructure = data.dietStructure;
+        
+        // 如果已点菜单没有返回数据，使用默认数据
+        if (!this.nutrientData) {
+          this.nutrientData = data.nutrientData;
+        }
+        if (!this.dietStructure) {
+          this.dietStructure = data.dietStructure;
+        }
+        
         this.nutritionTrends = data.nutritionTrends;
         this.vitaminIntake = data.vitaminIntake;
         this.mineralIntake = data.mineralIntake;
