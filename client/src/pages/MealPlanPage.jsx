@@ -38,6 +38,7 @@ import TodayIcon from '@mui/icons-material/Today';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import AddIcon from '@mui/icons-material/Add';
 import InfoIcon from '@mui/icons-material/Info';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { mealPlanStore, inventoryStore, recipeStore } from '../stores/RootStore';
 
 const initialIngredient = {
@@ -102,25 +103,53 @@ const MealPlanPage = observer(() => {
   useEffect(() => {
     const checkAllIngredients = async () => {
       if (mealPlanStore.mealPlans.length > 0) {
+        console.log('Checking ingredients for meal plans:', mealPlanStore.mealPlans);
+        
         const statusPromises = mealPlanStore.mealPlans.map(async (meal) => {
           try {
-            // 使用 meal._id 如果存在，否则使用 meal.id
-            const mealId = meal._id || meal.id;
+            // 获取有效的ID
+            let mealId = meal._id || meal.id;
+            
+            // 确保mealId是字符串类型
+            mealId = String(mealId);
+            
+            console.log(`Checking ingredients for meal: ${meal.recipe?.name || 'Unknown'}, ID: ${mealId}`);
+            
             const status = await mealPlanStore.checkIngredientAvailability(mealId);
-            return { mealId, status };
+            return { mealId, status, meal };
           } catch (error) {
             console.error(`Failed to check ingredients for meal ${meal.id || meal._id}:`, error);
-            return { mealId: meal.id || meal._id, status: { outOfStock: [] } };
+            return { 
+              mealId: String(meal.id || meal._id), 
+              status: { outOfStock: [], lowStock: [] },
+              meal 
+            };
           }
         });
         
         const statuses = await Promise.all(statusPromises);
         const newIngredientStatus = {};
         
-        statuses.forEach(({ mealId, status }) => {
+        statuses.forEach(({ mealId, status, meal }) => {
+          if (!status) {
+            console.warn(`No status returned for meal ID: ${mealId}`);
+            return;
+          }
+          
+          // 存储状态时使用两个键：mealId和meal的id或_id
+          // 这样无论前端使用哪个ID都能找到正确的状态
           newIngredientStatus[mealId] = status;
+          
+          // 同时为meal.id和meal._id都存储状态，确保在UI中能够找到
+          if (meal.id) {
+            newIngredientStatus[String(meal.id)] = status;
+          }
+          if (meal._id) {
+            newIngredientStatus[String(meal._id)] = status;
+          }
         });
         
+        console.log('Updated ingredient status:', newIngredientStatus);
         setMealIngredientStatus(newIngredientStatus);
       }
     };
@@ -368,6 +397,91 @@ const MealPlanPage = observer(() => {
     }
   };
   
+  // 创建一个辅助函数，用于检查库存状态
+  const hasOutOfStockIngredients = (meal) => {
+    if (!meal) return false;
+    
+    // 获取meal的ID，以字符串形式
+    const mealId = String(meal._id || meal.id || '');
+    const status = mealIngredientStatus[mealId];
+    
+    // 确保状态对象和outOfStock数组有效
+    return status && 
+           status.outOfStock && 
+           Array.isArray(status.outOfStock) && 
+           status.outOfStock.length > 0;
+  };
+
+  const hasLowStockIngredients = (meal) => {
+    if (!meal) return false;
+    
+    // 获取meal的ID，以字符串形式
+    const mealId = String(meal._id || meal.id || '');
+    const status = mealIngredientStatus[mealId];
+    
+    // 确保状态对象和lowStock数组有效
+    return status && 
+           status.lowStock && 
+           Array.isArray(status.lowStock) && 
+           status.lowStock.length > 0;
+  };
+
+  const hasIngredientStatusError = (meal) => {
+    if (!meal) return false;
+    
+    // 获取meal的ID，以字符串形式
+    const mealId = String(meal._id || meal.id || '');
+    const status = mealIngredientStatus[mealId];
+    
+    // 检查是否有错误标志
+    return status && (status.error || status.apiError || status.inventoryError);
+  };
+  
+  // 创建一个新函数，强制更新所有食谱的库存状态
+  const forceUpdateAllIngredientStatus = async () => {
+    if (mealPlanStore.mealPlans.length === 0) return;
+    
+    setLoading(true);
+    try {
+      const promises = mealPlanStore.mealPlans.map(async (meal) => {
+        const mealId = String(meal._id || meal.id || '');
+        if (!mealId) return null;
+        
+        try {
+          const status = await mealPlanStore.checkIngredientAvailability(mealId);
+          return { mealId, status, meal };
+        } catch (error) {
+          console.error(`Failed to check ingredients for meal ${mealId}:`, error);
+          return null;
+        }
+      });
+      
+      const results = await Promise.all(promises);
+      const newStatus = { ...mealIngredientStatus };
+      
+      results.forEach(result => {
+        if (!result) return;
+        
+        const { mealId, status, meal } = result;
+        if (mealId && status) {
+          newStatus[mealId] = status;
+          
+          if (meal.id) newStatus[String(meal.id)] = status;
+          if (meal._id) newStatus[String(meal._id)] = status;
+        }
+      });
+      
+      setMealIngredientStatus(newStatus);
+      setSuccess('已更新所有食材状态');
+      setTimeout(() => setSuccess(''), 3000);
+    } catch (error) {
+      setError('更新食材状态失败: ' + error.message);
+      setTimeout(() => setError(''), 5000);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   return (
     <Box sx={{ width: '100%' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -405,6 +519,16 @@ const MealPlanPage = observer(() => {
         </Alert>
       )}
       
+      {/* 添加调试信息，仅在开发环境中显示 */}
+      {import.meta.env.DEV && Object.keys(mealIngredientStatus).length > 0 && (
+        <Box sx={{ mb: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+          <Typography variant="subtitle2" gutterBottom>调试信息</Typography>
+          <Box component="pre" sx={{ fontSize: '0.75rem', overflow: 'auto', maxHeight: 100 }}>
+            {JSON.stringify(mealIngredientStatus, null, 2)}
+          </Box>
+        </Box>
+      )}
+      
       {selectedMeals.length > 0 && (
         <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="subtitle1">
@@ -424,6 +548,19 @@ const MealPlanPage = observer(() => {
               删除所选
             </Button>
           </Box>
+        </Box>
+      )}
+      
+      {!loading && mealPlanStore.mealPlans.length > 0 && (
+        <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-end' }}>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={forceUpdateAllIngredientStatus}
+            size="small"
+          >
+            刷新库存状态
+          </Button>
         </Box>
       )}
       
@@ -578,12 +715,12 @@ const MealPlanPage = observer(() => {
                                       variant="body2"
                                       sx={{ 
                                         fontSize: '0.875rem', 
-                                        fontWeight: (mealIngredientStatus[meal._id] && mealIngredientStatus[meal._id].outOfStock.length > 0) || 
-                                                   (mealIngredientStatus[meal.id] && mealIngredientStatus[meal.id].outOfStock.length > 0) 
+                                        fontWeight: hasOutOfStockIngredients(meal) || hasLowStockIngredients(meal)
                                                    ? 'bold' : 'normal',
-                                        color: (mealIngredientStatus[meal._id] && mealIngredientStatus[meal._id].outOfStock.length > 0) || 
-                                               (mealIngredientStatus[meal.id] && mealIngredientStatus[meal.id].outOfStock.length > 0) 
-                                               ? 'error.main' : 'inherit'
+                                        color: hasOutOfStockIngredients(meal)
+                                               ? 'error.main' : 
+                                               hasLowStockIngredients(meal)
+                                               ? 'warning.main' : 'inherit'
                                       }}
                                     >
                                       {meal.recipe?.name || '未知菜品'}
@@ -600,8 +737,7 @@ const MealPlanPage = observer(() => {
                                   }
                                 />
                                 <ListItemSecondaryAction sx={{ display: 'flex', alignItems: 'center' }}>
-                                  {((mealIngredientStatus[meal._id] && mealIngredientStatus[meal._id].outOfStock.length > 0) || 
-                                    (mealIngredientStatus[meal.id] && mealIngredientStatus[meal.id].outOfStock.length > 0)) && (
+                                  {(hasOutOfStockIngredients(meal) || hasLowStockIngredients(meal)) ? (
                                     <Tooltip title="添加缺少的食材到采购清单">
                                       <IconButton
                                         onClick={(e) => {
@@ -615,6 +751,32 @@ const MealPlanPage = observer(() => {
                                         <ShoppingCartIcon fontSize="small" />
                                       </IconButton>
                                     </Tooltip>
+                                  ) : (
+                                    hasIngredientStatusError(meal) ? (
+                                      <Tooltip title="无法检查食材，点击重试">
+                                        <IconButton
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            // Try checking ingredients again
+                                            const mealId = meal._id || meal.id;
+                                            mealPlanStore.checkIngredientAvailability(mealId).then(status => {
+                                              setMealIngredientStatus(prev => ({
+                                                ...prev,
+                                                [mealId]: status,
+                                                // 同时更新两个ID的状态
+                                                [meal._id]: status,
+                                                [meal.id]: status
+                                              }));
+                                            });
+                                          }}
+                                          color="warning"
+                                          size="small"
+                                          sx={{ mr: 1 }}
+                                        >
+                                          <RefreshIcon fontSize="small" />
+                                        </IconButton>
+                                      </Tooltip>
+                                    ) : null
                                   )}
                                   <Typography variant="body2" color="text.secondary">查看食谱详情</Typography>
                                   <Tooltip title="查看食谱详情">
