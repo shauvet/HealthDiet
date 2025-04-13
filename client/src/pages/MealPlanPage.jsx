@@ -35,7 +35,6 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import TodayIcon from '@mui/icons-material/Today';
-import InventoryIcon from '@mui/icons-material/Inventory';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import AddIcon from '@mui/icons-material/Add';
 import InfoIcon from '@mui/icons-material/Info';
@@ -97,6 +96,36 @@ const MealPlanPage = observer(() => {
   useEffect(() => {
     fetchMeals();
   }, [fetchMeals]);
+  
+  // Auto-check ingredients when meals are loaded
+  useEffect(() => {
+    const checkAllIngredients = async () => {
+      if (mealPlanStore.mealPlans.length > 0) {
+        const statusPromises = mealPlanStore.mealPlans.map(async (meal) => {
+          try {
+            const status = await mealPlanStore.checkIngredientAvailability(meal.id);
+            return { mealId: meal.id, status };
+          } catch (error) {
+            console.error(`Failed to check ingredients for meal ${meal.id}:`, error);
+            return { mealId: meal.id, status: { outOfStock: [] } };
+          }
+        });
+        
+        const statuses = await Promise.all(statusPromises);
+        const newIngredientStatus = {};
+        
+        statuses.forEach(({ mealId, status }) => {
+          newIngredientStatus[mealId] = status;
+        });
+        
+        setMealIngredientStatus(newIngredientStatus);
+      }
+    };
+    
+    if (!loading) {
+      checkAllIngredients();
+    }
+  }, [mealPlanStore.mealPlans, loading]);
   
   // Auto-scroll to today's menu when data is loaded
   useEffect(() => {
@@ -228,18 +257,6 @@ const MealPlanPage = observer(() => {
     }
   };
   
-  const handleCheckIngredients = async (mealId) => {
-    try {
-      const status = await mealPlanStore.checkIngredientAvailability(mealId);
-      setMealIngredientStatus({
-        ...mealIngredientStatus,
-        [mealId]: status
-      });
-    } catch (error) {
-      console.error('Failed to check ingredients:', error);
-    }
-  };
-  
   const handleAddToShoppingList = async (mealId) => {
     setLoading(true);
     try {
@@ -261,18 +278,6 @@ const MealPlanPage = observer(() => {
     return mealPlanStore.mealPlans.filter(
       meal => meal.date === formattedDate && meal.mealType === mealType
     );
-  };
-  
-  const getMealStatus = (meal) => {
-    // If we have ingredient status for this meal
-    if (mealIngredientStatus[meal.id]) {
-      const status = mealIngredientStatus[meal.id];
-      if (status.outOfStock.length > 0) {
-        return 'warning';
-      }
-      return 'success';
-    }
-    return 'default';
   };
   
   // Recipe ingredients dialog handlers
@@ -568,7 +573,11 @@ const MealPlanPage = observer(() => {
                                   primary={
                                     <Typography 
                                       variant="body2"
-                                      sx={{ fontSize: '0.875rem' }}
+                                      sx={{ 
+                                        fontSize: '0.875rem', 
+                                        fontWeight: mealIngredientStatus[meal.id] && mealIngredientStatus[meal.id].outOfStock.length > 0 ? 'bold' : 'normal',
+                                        color: mealIngredientStatus[meal.id] && mealIngredientStatus[meal.id].outOfStock.length > 0 ? 'error.main' : 'inherit'
+                                      }}
                                     >
                                       {meal.recipe?.name || '未知菜品'}
                                     </Typography>
@@ -599,20 +608,7 @@ const MealPlanPage = observer(() => {
                                       </IconButton>
                                     </Tooltip>
                                   )}
-                                  <Tooltip title="检查食材库存">
-                                    <IconButton 
-                                      edge="end" 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleCheckIngredients(meal.id);
-                                      }}
-                                      color={getMealStatus(meal)}
-                                      size="small"
-                                      sx={{ mr: 1 }}
-                                    >
-                                      <InventoryIcon fontSize="small" />
-                                    </IconButton>
-                                  </Tooltip>
+                                  <Typography variant="body2" color="text.secondary">查看食谱详情</Typography>
                                   <Tooltip title="查看食谱详情">
                                     <IconButton
                                       edge="end"
