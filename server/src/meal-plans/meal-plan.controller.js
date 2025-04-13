@@ -243,6 +243,185 @@ const MealPlanController = {
         .json({ error: 'Failed to check ingredient availability' });
     }
   },
+
+  // 将缺货食材添加到购物清单
+  async addOutOfStockToShoppingList(req, res) {
+    try {
+      const { id } = req.params;
+      // 从请求中获取用户ID
+      const userId =
+        req.userId || req.body.userId || '000000000000000000000001';
+
+      console.log(
+        `Processing shopping list add request for mealPlanId ${id} and userId ${userId}`,
+      );
+
+      // 从请求体中获取食材数据
+      const { ingredients } = req.body;
+      console.log('Request body ingredients:', ingredients);
+
+      // 尝试获取膳食计划信息，以便在购物清单中添加更多上下文
+      let mealPlanInfo = null;
+      try {
+        console.log(`Fetching meal plan info for ID: ${id}`);
+        const mealPlan = await MealPlanService.getMealPlanById(id);
+        if (mealPlan) {
+          mealPlanInfo = {
+            id: mealPlan._id || mealPlan.id,
+            recipeName: mealPlan.recipeId?.name || '未知食谱',
+            date: mealPlan.date,
+            mealType: mealPlan.mealType,
+          };
+          console.log('Found meal plan info:', mealPlanInfo);
+        } else {
+          console.log(`No meal plan found for ID: ${id}`);
+        }
+      } catch (e) {
+        console.warn('Could not get meal plan info:', e.message);
+      }
+
+      // 如果没有提供食材数据，尝试获取缺货食材
+      if (
+        !ingredients ||
+        !Array.isArray(ingredients) ||
+        ingredients.length === 0
+      ) {
+        console.log(
+          `No ingredients provided in request, fetching out-of-stock ingredients for meal plan ${id}`,
+        );
+
+        // 获取膳食计划的库存状态
+        const status = await MealPlanService.checkIngredientAvailability(
+          userId,
+          id,
+        );
+
+        console.log('Ingredient availability check result:', status);
+
+        // 检查是否成功获取了缺货食材
+        if (
+          !status ||
+          !status.outOfStock ||
+          !Array.isArray(status.outOfStock) ||
+          status.outOfStock.length === 0
+        ) {
+          console.log('No out-of-stock ingredients found');
+          return res.status(400).json({
+            error: 'No out of stock ingredients found',
+            success: false,
+          });
+        }
+
+        // 使用获取到的缺货食材
+        const { outOfStock } = status;
+        console.log(
+          'Adding out of stock ingredients to shopping list:',
+          outOfStock,
+        );
+
+        try {
+          // 添加到购物清单
+          const InventoryService = require('../inventory/inventory.service');
+          const addedItems = [];
+
+          for (const ingredient of outOfStock) {
+            try {
+              const item = await InventoryService.addToShoppingList({
+                userId,
+                name: ingredient.name,
+                quantity: ingredient.quantity,
+                unit: ingredient.unit,
+                category: ingredient.category || 'others',
+                // 添加食谱和膳食计划的信息
+                mealPlanId: id,
+                mealPlanName: mealPlanInfo?.recipeName || '未知食谱',
+                mealDate: mealPlanInfo?.date || new Date(),
+                mealType: mealPlanInfo?.mealType || '未知',
+              });
+
+              console.log(`Added item to shopping list: ${ingredient.name}`);
+              addedItems.push(item);
+            } catch (itemError) {
+              console.error(
+                `Error adding item ${ingredient.name} to shopping list:`,
+                itemError,
+              );
+            }
+          }
+
+          return res.status(201).json({
+            success: true,
+            message: 'Added out of stock ingredients to shopping list',
+            addedItems,
+          });
+        } catch (shoppingListError) {
+          console.error(
+            'Error accessing inventory service:',
+            shoppingListError,
+          );
+          return res.status(500).json({
+            error: `Inventory service error: ${shoppingListError.message}`,
+            success: false,
+          });
+        }
+      } else {
+        // 使用提供的食材数据
+        console.log('Using ingredients provided in request:', ingredients);
+
+        try {
+          const InventoryService = require('../inventory/inventory.service');
+          const addedItems = [];
+
+          for (const ingredient of ingredients) {
+            try {
+              const item = await InventoryService.addToShoppingList({
+                userId,
+                name: ingredient.name,
+                quantity: ingredient.quantity,
+                unit: ingredient.unit,
+                category: ingredient.category || 'others',
+                // 添加食谱和膳食计划的信息
+                mealPlanId: id,
+                mealPlanName: mealPlanInfo?.recipeName || '未知食谱',
+                mealDate: mealPlanInfo?.date || new Date(),
+                mealType: mealPlanInfo?.mealType || '未知',
+              });
+
+              console.log(`Added item to shopping list: ${ingredient.name}`);
+              addedItems.push(item);
+            } catch (itemError) {
+              console.error(
+                `Error adding item ${ingredient.name} to shopping list:`,
+                itemError,
+              );
+            }
+          }
+
+          return res.status(201).json({
+            success: true,
+            message: 'Added ingredients to shopping list',
+            addedItems,
+          });
+        } catch (shoppingListError) {
+          console.error(
+            'Error accessing inventory service:',
+            shoppingListError,
+          );
+          return res.status(500).json({
+            error: `Inventory service error: ${shoppingListError.message}`,
+            success: false,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error adding to shopping list:', error);
+      return res.status(500).json({
+        error: `Failed to add to shopping list: ${error.message}`,
+        success: false,
+        stack: error.stack,
+      });
+    }
+  },
 };
 
 module.exports = MealPlanController;

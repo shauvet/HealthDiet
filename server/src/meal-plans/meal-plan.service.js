@@ -221,12 +221,36 @@ const MealPlanService = {
         // 创建一个硬编码的食谱对象
         const mockRecipe = {
           _id: new mongoose.Types.ObjectId(),
-          name: '模拟食谱',
+          name: '健康蔬菜沙拉',
+          description: '一道简单而营养的沙拉，富含多种维生素和矿物质',
           ingredients: [
-            { name: '胡萝卜', quantity: 2, unit: '个' },
-            { name: '洋葱', quantity: 1, unit: '个' },
-            { name: '土豆', quantity: 3, unit: '个' },
+            { name: '生菜', quantity: 200, unit: 'g', category: 'vegetables' },
+            { name: '胡萝卜', quantity: 2, unit: '个', category: 'vegetables' },
+            { name: '黄瓜', quantity: 1, unit: '个', category: 'vegetables' },
+            { name: '圣女果', quantity: 10, unit: '个', category: 'fruits' },
+            {
+              name: '橄榄油',
+              quantity: 15,
+              unit: 'ml',
+              category: 'condiments',
+            },
+            { name: '盐', quantity: 2, unit: 'g', category: 'condiments' },
+            { name: '黑胡椒', quantity: 1, unit: 'g', category: 'condiments' },
           ],
+          instructions:
+            '将生菜洗净切碎，胡萝卜和黄瓜切丝，圣女果切半，混合所有食材，最后加入橄榄油、盐和黑胡椒调味即可。',
+          preparationTime: 15,
+          cookingTime: 0,
+          servings: 2,
+          difficulty: 'easy',
+          tags: ['沙拉', '素食', '健康', '低热量'],
+          nutritionInfo: {
+            calories: 150,
+            protein: 3,
+            carbs: 10,
+            fat: 10,
+            fiber: 5,
+          },
         };
 
         // 创建一个模拟膳食计划
@@ -298,74 +322,71 @@ const MealPlanService = {
         // 确保recipe.ingredients是数组
         if (Array.isArray(recipe.ingredients)) {
           recipe.ingredients.forEach((ingredient) => {
+            // 确保食材对象包含必要的字段
+            const validIngredient = {
+              name: ingredient.name || '未知食材',
+              quantity: parseFloat(ingredient.quantity) || 1,
+              unit: ingredient.unit || 'g',
+              category: ingredient.category || 'others',
+            };
+
             // 找到库存中对应的食材
             const inventoryItem = userInventory.find(
               (item) =>
                 (item &&
-                  ingredient &&
+                  validIngredient &&
                   item.name &&
-                  ingredient.name &&
-                  item.name.toLowerCase() === ingredient.name.toLowerCase()) ||
+                  validIngredient.name &&
+                  item.name.toLowerCase() ===
+                    validIngredient.name.toLowerCase()) ||
                 (item.alternativeNames &&
                   item.alternativeNames.some(
                     (name) =>
-                      name.toLowerCase() === ingredient.name.toLowerCase(),
+                      name.toLowerCase() === validIngredient.name.toLowerCase(),
                   )),
             );
 
             // 根据需要数量和库存数量进行判断
             if (!inventoryItem) {
-              outOfStock.push(ingredient);
-            } else if (inventoryItem.quantity < ingredient.quantity) {
+              outOfStock.push(validIngredient);
+            } else if (inventoryItem.quantity < validIngredient.quantity) {
               lowStock.push({
-                ...ingredient,
+                ...validIngredient,
                 availableQuantity: inventoryItem.quantity,
               });
             } else {
-              available.push(ingredient);
+              available.push(validIngredient);
             }
           });
         } else {
-          console.log(
-            'Recipe ingredients is not an array:',
-            recipe.ingredients,
-          );
-          // 确保 outOfStock 至少有一项，以便前端显示缺货状态
-          outOfStock.push({ name: '示例食材', quantity: 1, unit: '个' });
+          console.log('Recipe ingredients is not an array, recipe:', recipe);
+          // 这里不再提供模拟数据，返回真实的空数组
         }
 
-        // 确保至少返回一个结果，即使没有任何食材
-        if (
-          available.length === 0 &&
-          outOfStock.length === 0 &&
-          lowStock.length === 0
-        ) {
-          outOfStock.push({ name: '示例食材', quantity: 1, unit: '个' });
-        }
+        // 如果没有任何食材，我们也不添加模拟数据，返回真实的空数组
 
         return {
           available,
           outOfStock,
           lowStock,
           mealPlanFound: true,
-          noIngredients: false,
+          noIngredients:
+            available.length === 0 &&
+            outOfStock.length === 0 &&
+            lowStock.length === 0,
+          recipeName: recipe.name || '未知食谱',
         };
       } catch (inventoryError) {
         console.error('Error checking inventory:', inventoryError);
-        // 即使库存查询失败，也返回一些有用的信息
-        const mockIngredients = [
-          { name: '胡萝卜', quantity: 2, unit: '个' },
-          { name: '洋葱', quantity: 1, unit: '个' },
-          { name: '土豆', quantity: 3, unit: '个' },
-        ];
-
+        // 即使库存查询失败，也返回一些有用的信息，但不再使用模拟数据
         return {
           available: [],
-          outOfStock: mockIngredients, // 使用模拟食材作为缺货项
+          outOfStock: [],
           lowStock: [],
           mealPlanFound: true,
-          noIngredients: false,
+          noIngredients: true,
           inventoryError: true,
+          recipeName: recipe.name || '未知食谱',
         };
       }
     } catch (error) {

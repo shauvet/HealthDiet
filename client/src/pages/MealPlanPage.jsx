@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { observer } from 'mobx-react-lite';
 import {
   Box,
@@ -49,6 +50,7 @@ const initialIngredient = {
 };
 
 const MealPlanPage = observer(() => {
+  const navigate = useNavigate();
   const [selectedMeals, setSelectedMeals] = useState([]);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -292,11 +294,18 @@ const MealPlanPage = observer(() => {
   const handleAddToShoppingList = async (mealId) => {
     setLoading(true);
     try {
-      await mealPlanStore.addOutOfStockToShoppingList(mealId);
-      // Refresh the shopping list data
-      await inventoryStore.fetchShoppingList();
-      setSuccess('已成功添加缺少的食材到采购清单');
-      setTimeout(() => setSuccess(''), 3000);
+      const result = await mealPlanStore.addOutOfStockToShoppingList(mealId);
+      
+      if (result.success) {
+        await inventoryStore.fetchShoppingList();
+        setSuccess('已成功添加缺少的食材到采购清单');
+        
+        setTimeout(() => {
+          navigate('/inventory?tab=shopping');
+        }, 1000);
+      } else {
+        setError(result.message || '添加到采购清单失败，请稍后重试');
+      }
     } catch (error) {
       setError('添加到采购清单失败，请稍后重试');
       console.error('Failed to add to shopping list:', error);

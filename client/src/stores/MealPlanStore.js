@@ -257,12 +257,36 @@ class MealPlanStore {
       this.loading = true;
     });
     try {
-      const response = await api.post(`/meal-plans/${mealId}/shopping-list/add`);
+      // 先获取食谱的库存状态，确保我们有真实的库存不足食材数据
+      const ingredientStatus = await this.checkIngredientAvailability(mealId);
+      
+      // 确保有库存不足的食材数据
+      if (!ingredientStatus || 
+          !ingredientStatus.outOfStock || 
+          !Array.isArray(ingredientStatus.outOfStock) || 
+          ingredientStatus.outOfStock.length === 0) {
+        console.warn('No out of stock ingredients found for meal:', mealId);
+        return { success: false, message: '没有找到库存不足的食材' };
+      }
+      
+      console.log('Adding out of stock ingredients to shopping list:', ingredientStatus.outOfStock);
+      
+      // 调用API将缺货食材添加到购物清单
+      const response = await api.post(`/meal-plans/${mealId}/shopping-list/add`, {
+        ingredients: ingredientStatus.outOfStock
+      });
+      
       runInAction(() => {
         this.error = null;
       });
-      return response.data;
+      
+      return {
+        ...response.data,
+        success: true,
+        addedIngredients: ingredientStatus.outOfStock
+      };
     } catch (error) {
+      console.error('Failed to add ingredients to shopping list:', error);
       runInAction(() => {
         this.error = error.message;
       });

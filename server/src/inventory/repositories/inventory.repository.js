@@ -4,9 +4,12 @@ const {
   ShoppingItemSchema,
 } = require('../schemas/inventory.schema');
 
-// 创建模型
-const Ingredient = mongoose.model('Ingredient', IngredientSchema);
-const ShoppingItem = mongoose.model('ShoppingItem', ShoppingItemSchema);
+// 创建模型，避免重复注册
+const Ingredient =
+  mongoose.models.Ingredient || mongoose.model('Ingredient', IngredientSchema);
+const ShoppingItem =
+  mongoose.models.ShoppingItem ||
+  mongoose.model('ShoppingItem', ShoppingItemSchema);
 
 class InventoryRepository {
   // 获取用户的所有库存食材

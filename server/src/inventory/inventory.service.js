@@ -1,4 +1,5 @@
 const InventoryRepository = require('./repositories/inventory.repository');
+const ShoppingListRepository = require('./repositories/shoppingList.repository');
 
 const InventoryService = {
   // 获取用户的库存食材
@@ -23,41 +24,87 @@ const InventoryService = {
 
   // 获取用户的购物清单
   async getUserShoppingList(userId) {
-    return await InventoryRepository.getUserShoppingList(userId);
+    return await ShoppingListRepository.getUserShoppingList(userId);
   },
 
   // 添加食材到购物清单
-  async addToShoppingList(shoppingItemData) {
-    return await InventoryRepository.addToShoppingList(shoppingItemData);
+  async addToShoppingList(data) {
+    try {
+      // 检查是否已有相同名称的食材在购物清单中
+      console.log('Adding to shopping list:', data);
+      const existingItem = await ShoppingListRepository.findItemByName(
+        data.userId,
+        data.name,
+      );
+
+      if (existingItem) {
+        // 如果存在，更新数量
+        console.log('Found existing item in shopping list, updating quantity');
+        const updatedItem = await ShoppingListRepository.updateItem(
+          existingItem.id,
+          {
+            requiredQuantity:
+              existingItem.requiredQuantity + (data.quantity || 1),
+            // 确保保留其他属性
+            toBuyQuantity: existingItem.toBuyQuantity + (data.quantity || 1),
+          },
+        );
+        return updatedItem;
+      } else {
+        // 不存在，创建新的购物清单项
+        console.log('Creating new item in shopping list');
+        const shoppingListItem = {
+          userId: data.userId,
+          name: data.name,
+          requiredQuantity: data.quantity || 1,
+          toBuyQuantity: data.quantity || 1,
+          unit: data.unit || 'piece',
+          category: data.category || 'others',
+          isCompleted: false,
+          priority: 'medium',
+          notes: `从膳食计划"${data.mealPlanName || '未知'}"添加`,
+          addedAt: new Date(),
+        };
+
+        return await ShoppingListRepository.addItem(shoppingListItem);
+      }
+    } catch (error) {
+      console.error('Error in addToShoppingList service:', error);
+      throw error;
+    }
   },
 
   // 更新购物清单项
   async updateShoppingItem(id, updateData) {
-    return await InventoryRepository.updateShoppingItem(id, updateData);
+    return await ShoppingListRepository.updateItem(id, updateData);
   },
 
   // 将购物清单项标记为已购买
   async markItemAsPurchased(id, purchased = true) {
-    return await InventoryRepository.markItemAsPurchased(id, purchased);
+    return await ShoppingListRepository.markAsCompleted(id, purchased);
   },
 
   // 批量标记购物清单项为已购买
   async markItemsAsPurchased(ids, purchased = true) {
-    return await InventoryRepository.markItemsAsPurchased(ids, purchased);
+    return await ShoppingListRepository.markAsCompleted(ids, purchased);
   },
 
   // 删除购物清单项
   async removeShoppingItem(id) {
-    return await InventoryRepository.removeShoppingItem(id);
+    return await ShoppingListRepository.removeItem(id);
   },
 
   // 将购物清单项添加到库存
   async moveToInventory(itemId) {
+    // 这个功能需要更新，以使用ShoppingListRepository和InventoryRepository
+    // 暂时使用旧的实现
     return await InventoryRepository.moveToInventory(itemId);
   },
 
   // 批量将购物清单项添加到库存
   async bulkMoveToInventory(itemIds) {
+    // 这个功能需要更新，以使用ShoppingListRepository和InventoryRepository
+    // 暂时使用旧的实现
     return await InventoryRepository.bulkMoveToInventory(itemIds);
   },
 

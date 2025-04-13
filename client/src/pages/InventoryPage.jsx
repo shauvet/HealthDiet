@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { observer } from 'mobx-react-lite';
 import {
   Box,
@@ -56,7 +57,13 @@ function TabPanel({ children, value, index, ...other }) {
 }
 
 const InventoryPage = observer(() => {
-  const [tabValue, setTabValue] = useState(0);
+  const [searchParams] = useSearchParams();
+  
+  const [tabValue, setTabValue] = useState(() => {
+    const tabParam = searchParams.get('tab');
+    return tabParam === 'shopping' ? 1 : 0;
+  });
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [newIngredient, setNewIngredient] = useState({
@@ -69,6 +76,13 @@ const InventoryPage = observer(() => {
   const [selectedItems, setSelectedItems] = useState([]);
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStock, setFilterStock] = useState('all'); // 'all', 'inStock', 'outOfStock'
+  
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'shopping') {
+      setTabValue(1);
+    }
+  }, [searchParams]);
   
   useEffect(() => {
     // Load inventory on initial render
@@ -251,7 +265,7 @@ const InventoryPage = observer(() => {
   return (
     <Box sx={{ width: '100%' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h5" component="h1">库存与采购</Typography>
+        <Typography component="div" variant="h5">库存与采购</Typography>
         
         <Button 
           variant="contained" 
@@ -339,7 +353,7 @@ const InventoryPage = observer(() => {
         ) : (
           <>
             {sortedIngredients.length === 0 ? (
-              <Typography variant="body1" sx={{ textAlign: 'center', my: 4 }}>
+              <Typography component="div" variant="body1" sx={{ textAlign: 'center', my: 4 }}>
                 {searchQuery || filterCategory !== 'all' || filterStock !== 'all' 
                   ? '没有符合条件的食材'
                   : '库存中没有食材，点击"添加食材"按钮开始添加'}
@@ -356,6 +370,7 @@ const InventoryPage = observer(() => {
                     {(index === 0 || 
                       sortedIngredients[index - 1].category !== ingredient.category) && (
                       <Typography 
+                        component="div"
                         variant="subtitle1" 
                         sx={{ mt: index > 0 ? 2 : 0, mb: 1, fontWeight: 'bold' }}
                       >
@@ -381,7 +396,7 @@ const InventoryPage = observer(() => {
                           >
                             <RemoveIcon />
                           </IconButton>
-                          <Typography sx={{ mx: 1, minWidth: '40px', textAlign: 'center' }}>
+                          <Typography component="span" sx={{ mx: 1, minWidth: '40px', textAlign: 'center' }}>
                             {ingredient.quantity}
                           </Typography>
                           <IconButton
@@ -410,10 +425,11 @@ const InventoryPage = observer(() => {
                       }
                     >
                       <ListItemText
-                        primary={ingredient.name}
-                        secondary={`${ingredient.quantity} ${getUnitLabel(ingredient.unit)}`}
+                        primary={<Typography component="span">{ingredient.name}</Typography>}
+                        secondary={<Typography component="span">{`${ingredient.quantity} ${getUnitLabel(ingredient.unit)}`}</Typography>}
                         primaryTypographyProps={{
-                          color: ingredient.quantity <= 0 ? 'error' : 'inherit'
+                          color: ingredient.quantity <= 0 ? 'error' : 'inherit',
+                          component: 'span'
                         }}
                       />
                     </ListItem>
@@ -429,7 +445,7 @@ const InventoryPage = observer(() => {
       <TabPanel value={tabValue} index={1}>
         {selectedItems.length > 0 && (
           <Box sx={{ mb: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-            <Typography variant="subtitle1" component="div">
+            <Typography component="div" variant="subtitle1">
               已选择 {selectedItems.length} 项
             </Typography>
             <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
@@ -455,14 +471,14 @@ const InventoryPage = observer(() => {
         ) : (
           <>
             {inventoryStore.shoppingList.length === 0 ? (
-              <Typography variant="body1" sx={{ textAlign: 'center', my: 4 }}>
+              <Typography component="div" variant="body1" sx={{ textAlign: 'center', my: 4 }}>
                 当前没有需要采购的物品
               </Typography>
             ) : (
               <List>
                 <ListItem>
                   <ListItemText primary={
-                    <Box sx={{ display: 'flex' }}>
+                    <>
                       <Checkbox
                         checked={selectedItems.length === inventoryStore.shoppingList.length}
                         onChange={selectedItems.length === inventoryStore.shoppingList.length ? 
@@ -470,66 +486,89 @@ const InventoryPage = observer(() => {
                         indeterminate={selectedItems.length > 0 && 
                           selectedItems.length < inventoryStore.shoppingList.length}
                       />
-                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', ml: 1 }}>
+                      <Typography component="span" variant="subtitle1" sx={{ fontWeight: 'bold', ml: 1 }}>
                         全选
                       </Typography>
-                    </Box>
+                    </>
                   } />
                 </ListItem>
                 
                 <Divider />
                 
-                {inventoryStore.shoppingList.map((item) => (
-                  <ListItem 
-                    key={item.id}
-                    sx={{ 
-                      bgcolor: 'background.paper', 
-                      my: 1, 
-                      borderRadius: 1,
-                      border: '1px solid',
-                      borderColor: 'divider'
-                    }}
-                  >
-                    <Checkbox
-                      checked={selectedItems.includes(item.id)}
-                      onChange={() => handleToggleSelect(item.id)}
-                    />
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                          <Typography variant="body1">
-                            {item.name}
-                          </Typography>
-                          <Chip 
-                            label={getCategoryLabel(item.category)} 
-                            size="small" 
-                            sx={{ ml: 1 }} 
-                            color="primary"
-                            variant="outlined"
-                          />
-                        </Box>
-                      }
-                      secondary={`需要: ${item.requiredQuantity || 0} ${getUnitLabel(item.unit)}`}
-                    />
-                    
-                    <Box sx={{ ml: 2 }}>
-                      <TextField
-                        label="采购数量"
-                        type="number"
-                        size="small"
-                        value={item.toBuyQuantity || item.requiredQuantity}
-                        onChange={(e) => {
-                          // In a real app, this would update the quantity to buy
-                          console.log(`Update quantity for ${item.id} to ${e.target.value}`);
-                        }}
-                        InputProps={{
-                          endAdornment: <InputAdornment position="end">{getUnitLabel(item.unit)}</InputAdornment>,
-                          inputProps: { min: 0 }
-                        }}
+                {inventoryStore.shoppingList.map((item) => {
+                  // 确保ID字段存在，优先使用_id，其次使用id
+                  const itemId = item._id || item.id;
+                  
+                  // 确保购买数量字段存在
+                  const requiredQty = item.requiredQuantity || item.quantity || 0;
+                  const toBuyQty = item.toBuyQuantity || item.quantity || requiredQty || 0;
+                  
+                  // 获取有用的备注信息
+                  const hasNotes = item.notes && item.notes.trim().length > 0;
+                  
+                  return (
+                    <ListItem 
+                      key={itemId}
+                      sx={{ 
+                        bgcolor: 'background.paper', 
+                        my: 1, 
+                        borderRadius: 1,
+                        border: '1px solid',
+                        borderColor: 'divider'
+                      }}
+                    >
+                      <Checkbox
+                        checked={selectedItems.includes(itemId)}
+                        onChange={() => handleToggleSelect(itemId)}
                       />
-                    </Box>
-                  </ListItem>
-                ))}
+                      <ListItemText
+                        primary={
+                          <>
+                            <Typography component="span" variant="body1">
+                              {item.name}
+                            </Typography>
+                            <Chip 
+                              label={getCategoryLabel(item.category)} 
+                              size="small" 
+                              sx={{ ml: 1, verticalAlign: 'middle' }} 
+                              color="primary"
+                              variant="outlined"
+                            />
+                          </>
+                        }
+                        secondary={
+                          <>
+                            <Typography component="span" variant="body2">
+                              需要: {requiredQty} {getUnitLabel(item.unit)}
+                            </Typography>
+                            {hasNotes && (
+                              <Typography component="span" variant="caption" sx={{ display: 'block' }} color="text.secondary">
+                                {item.notes}
+                              </Typography>
+                            )}
+                          </>
+                        }
+                      />
+                      
+                      <Box sx={{ ml: 2 }}>
+                        <TextField
+                          label="采购数量"
+                          type="number"
+                          size="small"
+                          value={toBuyQty}
+                          onChange={(e) => {
+                            // In a real app, this would update the quantity to buy
+                            console.log(`Update quantity for ${itemId} to ${e.target.value}`);
+                          }}
+                          InputProps={{
+                            endAdornment: <InputAdornment position="end">{getUnitLabel(item.unit)}</InputAdornment>,
+                            inputProps: { min: 0 }
+                          }}
+                        />
+                      </Box>
+                    </ListItem>
+                  );
+                })}
               </List>
             )}
           </>

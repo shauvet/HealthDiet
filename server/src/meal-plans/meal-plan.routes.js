@@ -14,6 +14,12 @@ router.get(
   MealPlanController.checkIngredientAvailability,
 );
 
+// 添加新的路由，用于将缺货食材添加到购物清单
+router.post(
+  '/:id/shopping-list/add',
+  MealPlanController.addOutOfStockToShoppingList,
+);
+
 // 添加和修改膳食计划
 router.post('/', MealPlanController.addMealPlan);
 router.post('/generate', MealPlanController.generateMealPlans);
