@@ -191,7 +191,7 @@ const RecipesPage = observer(() => {
           <Typography variant="h6" gutterBottom>搜索结果</Typography>
           <Grid container spacing={2}>
             {searchResults.map(recipe => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={recipe.id}>
+              <Grid item xs={12} sm={12} md={6} key={recipe.id} sx={{ width: '100%' }}>
                 <RecipeCard recipe={recipe} />
               </Grid>
             ))}
@@ -221,7 +221,7 @@ const RecipesPage = observer(() => {
         ) : (
           <Grid container spacing={2}>
             {getRecipeList().map(recipe => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={recipe.id}>
+              <Grid item xs={12} sm={12} md={6} key={recipe.id} sx={{ width: '100%' }}>
                 <RecipeCard recipe={recipe} />
               </Grid>
             ))}
@@ -244,7 +244,7 @@ const RecipesPage = observer(() => {
         ) : (
           <Grid container spacing={2}>
             {getRecipeList().map(recipe => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={recipe.id}>
+              <Grid item xs={12} sm={12} md={6} key={recipe.id} sx={{ width: '100%' }}>
                 <RecipeCard recipe={recipe} />
               </Grid>
             ))}
@@ -268,7 +268,7 @@ const RecipesPage = observer(() => {
         ) : (
           <Grid container spacing={2}>
             {getRecipeList().map(recipe => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={recipe.id}>
+              <Grid item xs={12} sm={12} md={6} key={recipe.id} sx={{ width: '100%' }}>
                 <RecipeCard recipe={recipe} />
               </Grid>
             ))}

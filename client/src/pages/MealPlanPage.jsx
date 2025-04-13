@@ -103,11 +103,13 @@ const MealPlanPage = observer(() => {
       if (mealPlanStore.mealPlans.length > 0) {
         const statusPromises = mealPlanStore.mealPlans.map(async (meal) => {
           try {
-            const status = await mealPlanStore.checkIngredientAvailability(meal.id);
-            return { mealId: meal.id, status };
+            // 使用 meal._id 如果存在，否则使用 meal.id
+            const mealId = meal._id || meal.id;
+            const status = await mealPlanStore.checkIngredientAvailability(mealId);
+            return { mealId, status };
           } catch (error) {
-            console.error(`Failed to check ingredients for meal ${meal.id}:`, error);
-            return { mealId: meal.id, status: { outOfStock: [] } };
+            console.error(`Failed to check ingredients for meal ${meal.id || meal._id}:`, error);
+            return { mealId: meal.id || meal._id, status: { outOfStock: [] } };
           }
         });
         
@@ -561,10 +563,10 @@ const MealPlanPage = observer(() => {
                               >
                                 <Checkbox
                                   edge="start"
-                                  checked={selectedMeals.includes(meal.id)}
+                                  checked={selectedMeals.includes(meal._id) || selectedMeals.includes(meal.id)}
                                   onChange={(e) => {
                                     e.stopPropagation();
-                                    handleToggleMeal(meal.id);
+                                    handleToggleMeal(meal._id || meal.id);
                                   }}
                                   disabled={isPastDate(date)}
                                   size="small"
@@ -575,8 +577,12 @@ const MealPlanPage = observer(() => {
                                       variant="body2"
                                       sx={{ 
                                         fontSize: '0.875rem', 
-                                        fontWeight: mealIngredientStatus[meal.id] && mealIngredientStatus[meal.id].outOfStock.length > 0 ? 'bold' : 'normal',
-                                        color: mealIngredientStatus[meal.id] && mealIngredientStatus[meal.id].outOfStock.length > 0 ? 'error.main' : 'inherit'
+                                        fontWeight: (mealIngredientStatus[meal._id] && mealIngredientStatus[meal._id].outOfStock.length > 0) || 
+                                                   (mealIngredientStatus[meal.id] && mealIngredientStatus[meal.id].outOfStock.length > 0) 
+                                                   ? 'bold' : 'normal',
+                                        color: (mealIngredientStatus[meal._id] && mealIngredientStatus[meal._id].outOfStock.length > 0) || 
+                                               (mealIngredientStatus[meal.id] && mealIngredientStatus[meal.id].outOfStock.length > 0) 
+                                               ? 'error.main' : 'inherit'
                                       }}
                                     >
                                       {meal.recipe?.name || '未知菜品'}
@@ -593,12 +599,13 @@ const MealPlanPage = observer(() => {
                                   }
                                 />
                                 <ListItemSecondaryAction sx={{ display: 'flex', alignItems: 'center' }}>
-                                  {mealIngredientStatus[meal.id] && mealIngredientStatus[meal.id].outOfStock.length > 0 && (
+                                  {((mealIngredientStatus[meal._id] && mealIngredientStatus[meal._id].outOfStock.length > 0) || 
+                                    (mealIngredientStatus[meal.id] && mealIngredientStatus[meal.id].outOfStock.length > 0)) && (
                                     <Tooltip title="添加缺少的食材到采购清单">
                                       <IconButton
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          handleAddToShoppingList(meal.id);
+                                          handleAddToShoppingList(meal._id || meal.id);
                                         }}
                                         color="primary"
                                         size="small"

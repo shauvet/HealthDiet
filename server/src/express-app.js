@@ -737,62 +737,86 @@ try {
   });
 
   // Add recipe to meal plan endpoint
-  apiRouter.post('/mealplan/add', (req, res) => {
+  apiRouter.post('/mealplan/add', async (req, res) => {
     const { recipeId, date, mealType, servings } = req.body;
     console.log(
       `Adding recipe ${recipeId} to meal plan for ${date} (${mealType})`,
     );
 
-    // 查找对应的菜谱信息
-    let recipeName = '未知菜品';
-    let cookingTime = 30;
+    try {
+      // 从请求中获取用户ID
+      const userId = req.userId || '000000000000000000000001';
 
-    // 从推荐菜谱中查找
-    const recommendedRecipes = [
-      { id: 1, name: '番茄炒蛋', cookingTime: 15 },
-      { id: 2, name: '红烧肉', cookingTime: 60 },
-      { id: 3, name: '清蒸鱼', cookingTime: 30 },
-      { id: 4, name: '麻婆豆腐', cookingTime: 25 },
-      { id: 5, name: '小笼包', cookingTime: 45 },
-      { id: 6, name: '宫保鸡丁', cookingTime: 30 },
-    ];
+      // 查找对应的菜谱信息
+      let recipeName = '未知菜品';
+      let cookingTime = 30;
 
-    // 从个人菜谱中查找
-    const personalRecipes = [
-      { id: 7, name: '自创炒饭', cookingTime: 20 },
-      { id: 8, name: '家常豆腐', cookingTime: 25 },
-      { id: 9, name: '东坡肉', cookingTime: 30 },
-    ];
+      // 从推荐菜谱中查找
+      const recommendedRecipes = [
+        { id: 1, name: '番茄炒蛋', cookingTime: 15 },
+        { id: 2, name: '红烧肉', cookingTime: 60 },
+        { id: 3, name: '清蒸鱼', cookingTime: 30 },
+        { id: 4, name: '麻婆豆腐', cookingTime: 25 },
+        { id: 5, name: '小笼包', cookingTime: 45 },
+        { id: 6, name: '宫保鸡丁', cookingTime: 30 },
+      ];
 
-    // 查找对应菜谱
-    const allRecipes = [...recommendedRecipes, ...personalRecipes];
-    const recipe = allRecipes.find((r) => r.id === parseInt(recipeId));
+      // 从个人菜谱中查找
+      const personalRecipes = [
+        { id: 7, name: '自创炒饭', cookingTime: 20 },
+        { id: 8, name: '家常豆腐', cookingTime: 25 },
+        { id: 9, name: '东坡肉', cookingTime: 30 },
+      ];
 
-    if (recipe) {
-      recipeName = recipe.name;
-      cookingTime = recipe.cookingTime;
+      // 查找对应菜谱
+      const allRecipes = [...recommendedRecipes, ...personalRecipes];
+      const recipe = allRecipes.find((r) => r.id === parseInt(recipeId));
+
+      if (recipe) {
+        recipeName = recipe.name;
+        cookingTime = recipe.cookingTime;
+      }
+
+      // 导入并使用MealPlanService
+      const MealPlanService = require('./meal-plans/meal-plan.service');
+
+      // 创建新添加的菜单项并保存到数据库
+      const mealPlanData = {
+        date: new Date(date),
+        mealType,
+        servings: servings || 1,
+        userId,
+        // 使用临时recipe ID，后期可以替换为数据库中真实的recipe ID
+        recipeId: new mongoose.Types.ObjectId(), // 创建一个临时的ObjectId
+        // 存储原始的recipeId和其他信息，用于前端显示
+        recipeDetails: {
+          originalId: parseInt(recipeId),
+          name: recipeName,
+          cookingTime: cookingTime,
+        },
+      };
+
+      // 保存到数据库
+      const savedMealPlan = await MealPlanService.addMealPlan(mealPlanData);
+
+      // 转换返回结果格式，确保与原来的API返回格式一致
+      const mealPlanItem = {
+        id: savedMealPlan._id, // 使用MongoDB生成的ID
+        date: savedMealPlan.date,
+        mealType: savedMealPlan.mealType,
+        servings: savedMealPlan.servings,
+        recipe: {
+          id: parseInt(recipeId),
+          name: recipeName,
+          cookingTime: cookingTime,
+        },
+      };
+
+      res.status(201).json(mealPlanItem);
+    } catch (error) {
+      console.error('Error adding meal plan:', error);
+      res.status(500).json({ error: 'Failed to add meal plan' });
     }
-
-    // 创建新添加的菜单项
-    const mealPlanItem = {
-      id: Math.floor(Math.random() * 1000),
-      date,
-      mealType,
-      servings: servings || 1,
-      recipe: {
-        id: parseInt(recipeId),
-        name: recipeName,
-        cookingTime: cookingTime,
-      },
-    };
-
-    // 将新项目添加到内存中
-    if (!app.locals.mealPlans) {
-      app.locals.mealPlans = [];
-    }
-    app.locals.mealPlans.push(mealPlanItem);
-
-    res.json(mealPlanItem);
   });
 
   // 添加健康分析路由

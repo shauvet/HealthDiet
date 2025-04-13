@@ -16,6 +16,14 @@ Prop({
   ref: 'Recipe',
   required: true,
 })(MealPlan.prototype, 'recipeId');
+
+// 添加 recipeDetails 字段存储前端显示所需的信息
+Prop({
+  type: Object,
+  default: null,
+  required: false,
+})(MealPlan.prototype, 'recipeDetails');
+
 Prop({ type: Number, default: 1 })(MealPlan.prototype, 'servings');
 Prop({ type: Boolean, default: false })(MealPlan.prototype, 'completed');
 Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true })(
