@@ -61,6 +61,7 @@ const MealPlanPage = observer(() => {
   const [currentMeal, setCurrentMeal] = useState(null);
   const [editedIngredients, setEditedIngredients] = useState([]);
   const [savingIngredients, setSavingIngredients] = useState(false);
+  const [recipeDetailsLoading, setRecipeDetailsLoading] = useState(false);
   
   // Date range for weekly view
   const [dateRange, setDateRange] = useState(() => {
@@ -290,7 +291,7 @@ const MealPlanPage = observer(() => {
       // If meal has recipe ID but no ingredients, fetch them from the API
       if (meal.recipe && meal.recipe.id && (!meal.recipe.ingredients || meal.recipe.ingredients.length === 0)) {
         console.log('Fetching recipe details for:', meal.recipe.id);
-        setLoading(true);
+        setRecipeDetailsLoading(true);
         
         // Fetch full recipe details using the recipe ID
         const recipeDetails = await recipeStore.getRecipeById(meal.recipe.id);
@@ -313,7 +314,7 @@ const MealPlanPage = observer(() => {
       console.error('Error fetching recipe details:', error);
       setEditedIngredients([{ ...initialIngredient }]);
     } finally {
-      setLoading(false);
+      setRecipeDetailsLoading(false);
       setOpenIngredientsDialog(true);
     }
   };
@@ -731,79 +732,85 @@ const MealPlanPage = observer(() => {
           {currentMeal?.recipe?.name || '食谱详情'} - 食材列表
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {editedIngredients.length === 0 ? (
-              <Typography color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                暂无食材信息
-              </Typography>
-            ) : (
-              <>
-                {editedIngredients.map((ingredient, index) => (
-                  <Grid container spacing={2} key={index} sx={{ mb: 1 }}>
-                    <Grid item xs={12} sm={4}>
-                      <TextField
-                        label="食材名称"
-                        value={ingredient.name}
-                        onChange={(e) => handleIngredientChange(index, 'name', e.target.value)}
-                        fullWidth
-                        required
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                      <TextField
-                        label="数量"
-                        type="number"
-                        value={ingredient.quantity}
-                        onChange={(e) => handleIngredientChange(index, 'quantity', e.target.value)}
-                        fullWidth
-                        required
-                        InputProps={{
-                          inputProps: { min: 0.1, step: 0.1 }
-                        }}
-                      />
-                    </Grid>
-                    <Grid item xs={6} sm={3}>
-                      <FormControl fullWidth>
-                        <InputLabel id={`unit-label-${index}`}>单位</InputLabel>
-                        <Select
-                          labelId={`unit-label-${index}`}
-                          value={ingredient.unit}
-                          label="单位"
-                          onChange={(e) => handleIngredientChange(index, 'unit', e.target.value)}
+          {recipeDetailsLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              {editedIngredients.length === 0 ? (
+                <Typography color="text.secondary" sx={{ fontStyle: 'italic' }}>
+                  暂无食材信息
+                </Typography>
+              ) : (
+                <>
+                  {editedIngredients.map((ingredient, index) => (
+                    <Grid container spacing={2} key={index} sx={{ mb: 1 }}>
+                      <Grid item xs={12} sm={4}>
+                        <TextField
+                          label="食材名称"
+                          value={ingredient.name}
+                          onChange={(e) => handleIngredientChange(index, 'name', e.target.value)}
+                          fullWidth
+                          required
+                        />
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <TextField
+                          label="数量"
+                          type="number"
+                          value={ingredient.quantity}
+                          onChange={(e) => handleIngredientChange(index, 'quantity', e.target.value)}
+                          fullWidth
+                          required
+                          InputProps={{
+                            inputProps: { min: 0.1, step: 0.1 }
+                          }}
+                        />
+                      </Grid>
+                      <Grid item xs={6} sm={3}>
+                        <FormControl fullWidth>
+                          <InputLabel id={`unit-label-${index}`}>单位</InputLabel>
+                          <Select
+                            labelId={`unit-label-${index}`}
+                            value={ingredient.unit}
+                            label="单位"
+                            onChange={(e) => handleIngredientChange(index, 'unit', e.target.value)}
+                          >
+                            <MenuItem value="g">克 (g)</MenuItem>
+                            <MenuItem value="kg">千克 (kg)</MenuItem>
+                            <MenuItem value="ml">毫升 (ml)</MenuItem>
+                            <MenuItem value="piece">个</MenuItem>
+                            <MenuItem value="tbsp">汤匙</MenuItem>
+                            <MenuItem value="tsp">茶匙</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={6} sm={2} sx={{ display: 'flex', alignItems: 'center' }}>
+                        <IconButton
+                          color="error"
+                          onClick={() => handleRemoveIngredient(index)}
+                          disabled={editedIngredients.length <= 1}
                         >
-                          <MenuItem value="g">克 (g)</MenuItem>
-                          <MenuItem value="kg">千克 (kg)</MenuItem>
-                          <MenuItem value="ml">毫升 (ml)</MenuItem>
-                          <MenuItem value="piece">个</MenuItem>
-                          <MenuItem value="tbsp">汤匙</MenuItem>
-                          <MenuItem value="tsp">茶匙</MenuItem>
-                        </Select>
-                      </FormControl>
+                          <DeleteIcon />
+                        </IconButton>
+                      </Grid>
                     </Grid>
-                    <Grid item xs={6} sm={2} sx={{ display: 'flex', alignItems: 'center' }}>
-                      <IconButton
-                        color="error"
-                        onClick={() => handleRemoveIngredient(index)}
-                        disabled={editedIngredients.length <= 1}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </Grid>
-                  </Grid>
-                ))}
-              </>
-            )}
-            
-            <Button
-              variant="outlined"
-              startIcon={<AddIcon />}
-              onClick={handleAddIngredient}
-              size="small"
-              sx={{ mt: 1 }}
-            >
-              添加食材
-            </Button>
-          </Box>
+                  ))}
+                </>
+              )}
+              
+              <Button
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={handleAddIngredient}
+                size="small"
+                sx={{ mt: 1 }}
+              >
+                添加食材
+              </Button>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseIngredientsDialog}>取消</Button>
