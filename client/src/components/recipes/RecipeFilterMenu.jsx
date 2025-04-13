@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 
 // Dummy data for filters - would come from API in real app
-const cuisineTypes = [
+export const cuisineTypes = [
   { id: 1, name: '川菜' },
   { id: 2, name: '粤菜' },
   { id: 3, name: '鲁菜' },

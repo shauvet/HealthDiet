@@ -19,7 +19,7 @@ import { recipeStore } from '../stores/RootStore';
 
 // Components (to be created later)
 import RecipeCard from '../components/recipes/RecipeCard';
-import RecipeFilterMenu from '../components/recipes/RecipeFilterMenu';
+import RecipeFilterMenu, { cuisineTypes } from '../components/recipes/RecipeFilterMenu';
 import CreateRecipeDialog from '../components/recipes/CreateRecipeDialog';
 
 // Tab Panel Component
@@ -130,13 +130,70 @@ const RecipesPage = observer(() => {
     // Apply filters
     return recipes.filter(recipe => {
       // Filter by meal type
-      if (filters.mealType !== 'all' && recipe.mealType !== filters.mealType) {
-        return false;
+      if (filters.mealType !== 'all') {
+        // 检查所有可能包含餐类信息的字段
+        const mealTypeFields = [
+          // 主要字段 - categories数组
+          ...(recipe.categories || []),
+          // 兼容可能存在的mealType字段
+          recipe.mealType,
+          // 兼容可能在tags中的餐类信息
+          ...(recipe.tags || [])
+        ].filter(Boolean); // 过滤掉null和undefined
+        
+        // 检查任意字段是否匹配餐类
+        const hasCorrectMealType = mealTypeFields.some(value => {
+          if (!value) return false;
+          const valueStr = String(value).toLowerCase();
+          
+          // 直接英文匹配
+          if (valueStr === filters.mealType.toLowerCase()) {
+            return true;
+          }
+          
+          // 中文匹配关键词
+          const matches = {
+            breakfast: ['早餐', '早'],
+            lunch: ['午餐', '中餐', '午', '中'],
+            dinner: ['晚餐', '晚', '夜'],
+            snack: ['小吃', '加餐', '点心', '零食']
+          };
+          
+          return (matches[filters.mealType] || []).some(term => valueStr.includes(term));
+        });
+        
+        if (!hasCorrectMealType) return false;
       }
 
       // Filter by cuisine
-      if (filters.cuisines.length > 0 && !filters.cuisines.includes(recipe.cuisineId)) {
-        return false;
+      if (filters.cuisines.length > 0) {
+        // 菜系可能存储在cuisine字段或categories数组中
+        const cuisineMatches = filters.cuisines.some(cuisineId => {
+          // 尝试根据ID匹配菜系
+          if (recipe.cuisineId && recipe.cuisineId === cuisineId) {
+            return true;
+          }
+          
+          // 查找对应的菜系名称
+          const cuisineObj = cuisineTypes.find(c => c.id === cuisineId);
+          if (!cuisineObj) return false;
+          
+          const cuisineName = cuisineObj.name;
+          
+          // 检查cuisine字段
+          if (recipe.cuisine && 
+              (recipe.cuisine === cuisineName || 
+               recipe.cuisine.includes(cuisineName))) {
+            return true;
+          }
+          
+          // 检查categories数组中是否包含该菜系
+          return recipe.categories && recipe.categories.some(
+            category => category === cuisineName || category.includes(cuisineName)
+          );
+        });
+        
+        if (!cuisineMatches) return false;
       }
 
       // Filter by spice level

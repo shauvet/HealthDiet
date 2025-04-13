@@ -51,7 +51,8 @@ const recipes = [
     mockId: 1,
     imageUrl: '/assets/food-placeholder.svg',
     spiceLevel: 0,
-    categories: ['家常菜', '快手菜'],
+    categories: ['家常菜', '快手菜', '午餐'],
+    tags: ['简单', '快速'],
     createdBy: '000000000000000000000001',
   },
   {
@@ -76,7 +77,8 @@ const recipes = [
     mockId: 2,
     imageUrl: '/assets/food-placeholder.svg',
     spiceLevel: 2,
-    categories: ['家常菜', '肉类'],
+    categories: ['家常菜', '肉类', '晚餐'],
+    tags: ['红烧', '肉类'],
     createdBy: '000000000000000000000001',
   },
   {
@@ -180,18 +182,69 @@ const recipes = [
     categories: ['川菜', '鸡肉'],
     createdBy: '000000000000000000000001',
   },
+  {
+    name: '皮蛋瘦肉粥',
+    description: '营养丰富的传统早餐',
+    cookingTime: 40,
+    servings: 2,
+    ingredients: [
+      { name: '大米', quantity: 100, unit: 'g', isMain: true },
+      { name: '皮蛋', quantity: 1, unit: '个', isMain: true },
+      { name: '瘦肉', quantity: 100, unit: 'g', isMain: true },
+      { name: '葱花', quantity: 5, unit: 'g', isMain: false },
+    ],
+    steps: [
+      '大米洗净',
+      '加入足量清水煮开',
+      '放入切块的皮蛋和瘦肉',
+      '熬至米烂成粥',
+      '撒上葱花即可',
+    ],
+    mockId: 100,
+    imageUrl: '/assets/food-placeholder.svg',
+    spiceLevel: 0,
+    categories: ['早餐', '粥品'],
+    tags: ['粥', '传统'],
+    createdBy: '000000000000000000000001',
+  },
+  {
+    name: '爆米花',
+    description: '香甜可口的休闲零食',
+    cookingTime: 10,
+    servings: 2,
+    ingredients: [
+      { name: '玉米粒', quantity: 100, unit: 'g', isMain: true },
+      { name: '食用油', quantity: 10, unit: 'ml', isMain: false },
+      { name: '食盐', quantity: 2, unit: 'g', isMain: false },
+    ],
+    steps: [
+      '锅中加入少量油',
+      '放入玉米粒',
+      '盖上锅盖小火加热',
+      '等待玉米粒全部爆开',
+      '撒上少许盐调味即可',
+    ],
+    mockId: 101,
+    imageUrl: '/assets/food-placeholder.svg',
+    spiceLevel: 0,
+    categories: ['小吃', '零食', '加餐'],
+    tags: ['简单', '休闲'],
+    createdBy: '000000000000000000000001',
+  },
 ];
 
 // 导入食谱数据
 const seedRecipes = async () => {
   try {
     // 清空已存在的mockId食谱数据，避免重复
-    await Recipe.deleteMany({ mockId: { $in: [1, 2, 3, 4, 5, 6] } });
+    await Recipe.deleteMany({
+      mockId: { $in: [1, 2, 3, 4, 5, 6, 100, 101] },
+    });
     console.log('已清空现有模拟食谱数据');
 
     // 批量插入新食谱
     await Recipe.insertMany(recipes);
-    console.log('成功导入6个食谱数据到数据库');
+    console.log(`成功导入${recipes.length}个食谱数据到数据库`);
   } catch (error) {
     console.error('导入食谱数据失败:', error);
   }
