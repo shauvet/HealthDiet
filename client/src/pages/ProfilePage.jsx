@@ -503,15 +503,15 @@ const ProfilePage = observer(() => {
             ) : (
               <List>
                 {userStore.familyMembers.map((member, index) => (
-                  <React.Fragment key={member.id}>
+                  <React.Fragment key={index}>
                     {index > 0 && <Divider variant="inset" component="li" />}
-                    <ListItem alignItems="flex-start">
+                    <ListItem alignItems="flex-start" sx={{ gap: 1 }}>
                       <ListItemAvatar>
                         <Avatar {...stringAvatar(member.name)} />
                       </ListItemAvatar>
                       <ListItemText
                         primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'top' }}>
                             <Typography fontWeight="bold">{member.name}</Typography>
                             <Typography 
                               variant="body2" 
@@ -523,7 +523,7 @@ const ProfilePage = observer(() => {
                           </Box>
                         }
                         secondary={
-                          <Box component="span">
+                          <Box component="span" sx={{ display: 'flex',  gap: 1 }}>
                             <Typography variant="body2" component="span">
                               {member.gender === 'male' ? '男' : 
                                member.gender === 'female' ? '女' : '其他'}
