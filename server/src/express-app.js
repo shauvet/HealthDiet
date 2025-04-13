@@ -457,16 +457,6 @@ apiRouter.get('/recipes/search', (req, res) => {
   ]);
 });
 
-// Shopping list endpoint - REMOVED TO USE DATABASE IMPLEMENTATION
-// apiRouter.get('/inventory/shopping-list', (req, res) => {
-//   res.json([
-//     { id: 4, name: '生菜', quantity: 2, unit: '个', category: 'vegetables' },
-//     { id: 5, name: '牛肉', quantity: 500, unit: 'g', category: 'meat' },
-//     { id: 6, name: '土豆', quantity: 4, unit: '个', category: 'vegetables' },
-//     { id: 7, name: '胡萝卜', quantity: 3, unit: '个', category: 'vegetables' },
-//   ]);
-// });
-
 // Shopping list purchase endpoint
 apiRouter.post('/inventory/purchased', (req, res) => {
   const { ingredientIds } = req.body;

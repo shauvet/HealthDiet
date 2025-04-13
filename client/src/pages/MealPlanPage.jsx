@@ -528,16 +528,6 @@ const MealPlanPage = observer(() => {
         </Alert>
       )}
       
-      {/* 添加调试信息，仅在开发环境中显示 */}
-      {import.meta.env.DEV && Object.keys(mealIngredientStatus).length > 0 && (
-        <Box sx={{ mb: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
-          <Typography variant="subtitle2" gutterBottom>调试信息</Typography>
-          <Box component="pre" sx={{ fontSize: '0.75rem', overflow: 'auto', maxHeight: 100 }}>
-            {JSON.stringify(mealIngredientStatus, null, 2)}
-          </Box>
-        </Box>
-      )}
-      
       {selectedMeals.length > 0 && (
         <Box sx={{ mb: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="subtitle1">
