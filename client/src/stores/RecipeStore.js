@@ -128,7 +128,14 @@ class RecipeStore {
       // 转换为字符串确保一致性
       const id = recipeId.toString();
       
-      console.log(`Toggling favorite for recipe: ${id}, current status: ${isFavorite ? 'favorited' : 'not favorited'}`);
+      // 记录更详细的信息，包括ID类型和值
+      console.log(`Toggling favorite for recipe:`, {
+        id,
+        type: typeof recipeId,
+        isNumeric: !isNaN(parseInt(id)),
+        isObjectId: /^[0-9a-fA-F]{24}$/.test(id),
+        currentStatus: isFavorite ? 'favorited' : 'not favorited'
+      });
       
       if (isFavorite) {
         // 如果已收藏，则调用取消收藏接口

@@ -34,11 +34,25 @@ const RecipeCard = observer(({ recipe }) => {
     if (recipe.recipeId) return recipe.recipeId;
     if (recipe.favoriteId) return recipe.favoriteId;
     
+    // 可能是数字ID（模拟数据）
+    if (recipe.mockId) return recipe.mockId.toString();
+    
+    // 还可能是直接用数字作为ID的情况
+    if (typeof recipe === 'object' && Object.keys(recipe).length > 0) {
+      // 尝试获取第一个看起来像ID的属性
+      for (const key in recipe) {
+        if ((key.toLowerCase().includes('id') || key === '_id') && recipe[key]) {
+          return recipe[key].toString();
+        }
+      }
+    }
+    
     // 如果是MongoDB ObjectId对象，尝试获取其字符串表示
     if (recipe.$id) return recipe.$id.toString();
     
-    // 没有有效ID
-    return null;
+    console.error("无法确定食谱ID:", recipe);
+    // 没有有效ID，返回一个时间戳作为临时ID
+    return `temp-${Date.now()}`;
   };
   
   // 检查服务器返回的收藏状态
@@ -68,6 +82,13 @@ const RecipeCard = observer(({ recipe }) => {
       console.error("Cannot favorite recipe without ID:", recipe);
       return;
     }
+    
+    // 生成日志以便调试
+    console.log("食谱详情:", {
+      id: recipeId,
+      name: recipe.name,
+      isFavorite: isFavorite
+    });
     
     // Update local UI state optimistically
     setIsFavorite(!isFavorite);
