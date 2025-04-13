@@ -9,22 +9,102 @@ const ShoppingItem =
 class ShoppingListRepository {
   // 查找用户的购物清单
   async getUserShoppingList(userId) {
-    return await ShoppingItem.find({ userId, isCompleted: false });
+    console.log(
+      `ShoppingListRepository - Getting shopping list for userId: ${userId}, filtering for non-completed items`,
+    );
+    // 同时检查purchased和isCompleted字段，兼容新旧两种模式
+    const items = await ShoppingItem.find({
+      userId,
+      $or: [
+        { purchased: false },
+        { isCompleted: false },
+        {
+          $and: [
+            { purchased: { $exists: false } },
+            { isCompleted: { $exists: false } },
+          ],
+        },
+      ],
+    });
+    console.log(
+      `ShoppingListRepository - Found ${items.length} items in shopping list`,
+    );
+
+    // 打印前几项，以便查看
+    if (items.length > 0) {
+      console.log(
+        'Sample shopping items:',
+        items.slice(0, 3).map((item) => ({
+          id: item._id,
+          name: item.name,
+          quantity: item.quantity,
+          requiredQuantity: item.requiredQuantity,
+          toBuyQuantity: item.toBuyQuantity,
+          purchased: item.purchased,
+          isCompleted: item.isCompleted,
+        })),
+      );
+    }
+
+    return items;
   }
 
   // 根据名称查找购物清单项
   async findItemByName(userId, name) {
-    return await ShoppingItem.findOne({
+    console.log(
+      `ShoppingListRepository - Finding item by name for userId: ${userId}, name: ${name}`,
+    );
+    // 同时检查purchased和isCompleted字段，兼容新旧两种模式
+    const item = await ShoppingItem.findOne({
       userId,
       name: { $regex: new RegExp(`^${name}$`, 'i') }, // 不区分大小写的匹配
+      $or: [
+        { purchased: false },
+        { isCompleted: false },
+        {
+          $and: [
+            { purchased: { $exists: false } },
+            { isCompleted: { $exists: false } },
+          ],
+        },
+      ],
     });
+    console.log(`ShoppingListRepository - Item found: ${item ? 'Yes' : 'No'}`);
+    if (item) {
+      console.log(
+        `ShoppingListRepository - Item details: id=${item._id}, name=${item.name}, quantity=${item.quantity}, requiredQuantity=${item.requiredQuantity}, isCompleted=${item.isCompleted}, purchased=${item.purchased}`,
+      );
+    }
+    return item;
   }
 
   // 添加购物清单项
   async addItem(shoppingItemData) {
-    console.log('ShoppingListRepository - Adding item:', shoppingItemData);
-    const shoppingItem = new ShoppingItem(shoppingItemData);
-    return await shoppingItem.save();
+    console.log('==== ShoppingListRepository - Adding item START ====');
+    console.log(
+      'ShoppingItem schema paths:',
+      Object.keys(ShoppingItem.schema.paths),
+    );
+    console.log('Data being saved:', JSON.stringify(shoppingItemData, null, 2));
+
+    // 确保所有必需字段都存在
+    if (!shoppingItemData.quantity) {
+      console.warn('MISSING QUANTITY field in shopping item data!');
+      shoppingItemData.quantity = shoppingItemData.requiredQuantity || 1;
+    }
+
+    try {
+      const shoppingItem = new ShoppingItem(shoppingItemData);
+      const savedItem = await shoppingItem.save();
+      console.log('Successfully saved shopping item:', savedItem._id);
+      console.log('==== ShoppingListRepository - Adding item END ====');
+      return savedItem;
+    } catch (error) {
+      console.error('ERROR saving shopping item:', error.message);
+      console.error('ERROR stack:', error.stack);
+      console.log('==== ShoppingListRepository - Adding item ERROR ====');
+      throw error;
+    }
   }
 
   // 更新购物清单项
@@ -40,9 +120,13 @@ class ShoppingListRepository {
 
   // 批量标记为已完成
   async markAsCompleted(itemIds, completed = true) {
+    console.log(
+      `Marking items as completed: ${itemIds}, completed: ${completed}`,
+    );
+    // 同时更新purchased和isCompleted字段，兼容新旧两种模式
     return await ShoppingItem.updateMany(
       { _id: { $in: itemIds } },
-      { $set: { isCompleted: completed } },
+      { $set: { isCompleted: completed, purchased: completed } },
     );
   }
 

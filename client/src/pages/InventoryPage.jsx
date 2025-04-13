@@ -84,6 +84,9 @@ const InventoryPage = observer(() => {
     severity: 'success'
   });
   
+  // 添加自动检查状态
+  const [autoCheckingIngredients, setAutoCheckingIngredients] = useState(false);
+  
   useEffect(() => {
     const tabParam = searchParams.get('tab');
     if (tabParam === 'shopping') {
@@ -93,8 +96,38 @@ const InventoryPage = observer(() => {
   
   useEffect(() => {
     // Load inventory on initial render
-    inventoryStore.fetchInventory();
-    inventoryStore.fetchShoppingList();
+    console.log('===== InventoryPage: Loading inventory and starting auto check =====');
+    
+    inventoryStore.fetchInventory()
+      .then(() => {
+        console.log('Inventory loaded successfully, fetching shopping list...');
+        return inventoryStore.fetchShoppingList();
+      })
+      .then(() => {
+        // 然后自动检查菜单食材与库存，添加缺少的食材到采购清单
+        console.log('Shopping list loaded successfully, starting automatic ingredient check...');
+        setAutoCheckingIngredients(true);
+        return inventoryStore.checkAndAddMenuIngredientsToShoppingList();
+      })
+      .then(() => {
+        console.log('Automatic ingredient check completed');
+        setAutoCheckingIngredients(false);
+        // 如果有新的购物清单项被添加，显示通知
+        if (inventoryStore.shoppingList.length > 0) {
+          console.log(`Shopping list now has ${inventoryStore.shoppingList.length} items`);
+          setNotification({
+            open: true,
+            message: '已自动检查膳食计划，并将缺失食材添加到采购清单',
+            severity: 'info'
+          });
+        } else {
+          console.log('Shopping list is empty after check');
+        }
+      })
+      .catch(error => {
+        console.error('Error during automatic ingredient check:', error);
+        setAutoCheckingIngredients(false);
+      });
   }, []);
   
   const handleChangeTab = (event, newValue) => {
@@ -471,6 +504,15 @@ const InventoryPage = observer(() => {
       
       {/* Shopping List Tab */}
       <TabPanel value={tabValue} index={1}>
+        {autoCheckingIngredients && (
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+            <CircularProgress size={20} sx={{ mr: 1 }} />
+            <Typography component="div" variant="body1">
+              正在自动检查膳食计划食材...
+            </Typography>
+          </Box>
+        )}
+        
         {selectedItems.length > 0 && (
           <Box sx={{ mb: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
             <Typography component="div" variant="subtitle1">

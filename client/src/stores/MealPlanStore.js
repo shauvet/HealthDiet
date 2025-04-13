@@ -260,20 +260,61 @@ class MealPlanStore {
       // 先获取食谱的库存状态，确保我们有真实的库存不足食材数据
       const ingredientStatus = await this.checkIngredientAvailability(mealId);
       
-      // 确保有库存不足的食材数据
-      if (!ingredientStatus || 
-          !ingredientStatus.outOfStock || 
-          !Array.isArray(ingredientStatus.outOfStock) || 
-          ingredientStatus.outOfStock.length === 0) {
-        console.warn('No out of stock ingredients found for meal:', mealId);
+      // 确保有库存不足的食材数据（包括完全缺货和库存不足两种情况）
+      const hasOutOfStock = ingredientStatus?.outOfStock?.length > 0;
+      const hasLowStock = ingredientStatus?.lowStock?.length > 0;
+      
+      if (!ingredientStatus || (!hasOutOfStock && !hasLowStock)) {
+        console.warn('No out of stock or low stock ingredients found for meal:', mealId);
         return { success: false, message: '没有找到库存不足的食材' };
       }
       
-      console.log('Adding out of stock ingredients to shopping list:', ingredientStatus.outOfStock);
+      // 收集所有需要添加到购物清单的食材
+      const ingredientsToAdd = [];
       
-      // 调用API将缺货食材添加到购物清单
+      // 添加完全缺货的食材
+      if (hasOutOfStock) {
+        console.log('Adding out of stock ingredients to shopping list:', ingredientStatus.outOfStock);
+        // 确保字段名称正确
+        const formattedOutOfStock = ingredientStatus.outOfStock.map(item => ({
+          name: item.name,
+          requiredQuantity: item.quantity,
+          toBuyQuantity: item.quantity,
+          unit: item.unit,
+          category: item.category || 'others'
+        }));
+        ingredientsToAdd.push(...formattedOutOfStock);
+      }
+      
+      // 添加库存不足的食材，计算需要购买的数量
+      if (hasLowStock) {
+        console.log('Adding low stock ingredients to shopping list:', ingredientStatus.lowStock);
+        
+        // 对于库存不足的食材，只添加缺少的部分数量
+        const lowStockToAdd = ingredientStatus.lowStock.map(item => {
+          const missingQuantity = item.quantity - (item.availableQuantity || 0);
+          return {
+            name: item.name,
+            requiredQuantity: missingQuantity,
+            toBuyQuantity: missingQuantity,
+            unit: item.unit,
+            category: item.category || 'others'
+          };
+        });
+        
+        // 确保数量大于0
+        const validLowStock = lowStockToAdd.filter(item => item.requiredQuantity > 0);
+        ingredientsToAdd.push(...validLowStock);
+      }
+      
+      if (ingredientsToAdd.length === 0) {
+        console.warn('No ingredients to add after processing');
+        return { success: false, message: '没有需要添加到购物清单的食材' };
+      }
+      
+      // 调用API将食材添加到购物清单
       const response = await api.post(`/meal-plans/${mealId}/shopping-list/add`, {
-        ingredients: ingredientStatus.outOfStock
+        ingredients: ingredientsToAdd
       });
       
       runInAction(() => {
@@ -283,7 +324,7 @@ class MealPlanStore {
       return {
         ...response.data,
         success: true,
-        addedIngredients: ingredientStatus.outOfStock
+        addedIngredients: ingredientsToAdd
       };
     } catch (error) {
       console.error('Failed to add ingredients to shopping list:', error);

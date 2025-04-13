@@ -94,7 +94,12 @@ const InventoryController = {
       // 从请求中获取用户ID
       const userId =
         req.userId || req.body.userId || '000000000000000000000001';
-      const itemData = { ...req.body, userId };
+      const itemData = {
+        ...req.body,
+        userId,
+        // 确保quantity字段存在，防止验证错误
+        quantity: req.body.quantity || req.body.requiredQuantity || 1,
+      };
 
       const newItem = await InventoryService.addToShoppingList(itemData);
       res.status(201).json(newItem);
@@ -127,7 +132,7 @@ const InventoryController = {
   },
 
   // 标记购物清单项为已购买
-  async markAsPurchased(req, res) {
+  async markItemAsPurchased(req, res) {
     try {
       const { id } = req.params;
       const { purchased } = req.body;
@@ -149,7 +154,7 @@ const InventoryController = {
   },
 
   // 批量标记购物清单项为已购买
-  async markMultipleAsPurchased(req, res) {
+  async markItemsAsPurchased(req, res) {
     try {
       const { ids, purchased } = req.body;
 

@@ -20,6 +20,12 @@ Prop({ required: true, type: Number, default: 1 })(
   'toBuyQuantity',
 );
 
+// 旧的数量字段，保持向后兼容
+Prop({ required: true, type: Number, default: 1 })(
+  ShoppingItem.prototype,
+  'quantity',
+);
+
 // 计量单位
 Prop({ required: true, type: String, default: 'g' })(
   ShoppingItem.prototype,
@@ -44,6 +50,9 @@ Prop({
 
 // 是否已购买
 Prop({ type: Boolean, default: false })(ShoppingItem.prototype, 'isCompleted');
+
+// 旧的已购买字段，保持向后兼容
+Prop({ type: Boolean, default: false })(ShoppingItem.prototype, 'purchased');
 
 // 优先级
 Prop({

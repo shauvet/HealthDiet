@@ -266,7 +266,10 @@ const MealPlanController = {
       const userId =
         req.userId || req.query.userId || '000000000000000000000001';
 
+      console.log(`Getting current week meal plans for user: ${userId}`);
+
       const mealPlans = await MealPlanService.getCurrentWeekMealPlans(userId);
+      console.log(`Found ${mealPlans.length} meal plans for current week`);
 
       // Transform the data structure before sending the response
       const transformedMealPlans = transformMealPlans(mealPlans);
@@ -340,6 +343,9 @@ const MealPlanController = {
         console.warn('Could not get meal plan info:', e.message);
       }
 
+      // 准备要添加到购物清单的食材数组
+      let ingredientsToAdd = [];
+
       if (
         !ingredients ||
         !Array.isArray(ingredients) ||
@@ -357,120 +363,109 @@ const MealPlanController = {
 
         console.log('Ingredient availability check result:', status);
 
-        // 检查是否成功获取了缺货食材
+        // 处理完全缺货的食材
         if (
-          !status ||
-          !status.outOfStock ||
-          !Array.isArray(status.outOfStock) ||
-          status.outOfStock.length === 0
+          status?.outOfStock &&
+          Array.isArray(status.outOfStock) &&
+          status.outOfStock.length > 0
         ) {
-          console.log('No out-of-stock ingredients found');
-          return res.status(400).json({
-            error: 'No out of stock ingredients found',
-            success: false,
-          });
+          console.log('Found out of stock ingredients:', status.outOfStock);
+          ingredientsToAdd.push(...status.outOfStock);
         }
 
-        // 使用获取到的缺货食材
-        const { outOfStock } = status;
-        console.log(
-          'Adding out of stock ingredients to shopping list:',
-          outOfStock,
-        );
+        // 处理库存不足的食材
+        if (
+          status?.lowStock &&
+          Array.isArray(status.lowStock) &&
+          status.lowStock.length > 0
+        ) {
+          console.log('Found low stock ingredients:', status.lowStock);
 
-        try {
-          // 添加到购物清单
-          const InventoryService = require('../inventory/inventory.service');
-          const addedItems = [];
+          // 对于库存不足的食材，只添加缺少的部分数量
+          const lowStockToAdd = status.lowStock.map((item) => ({
+            name: item.name,
+            quantity: item.quantity - (item.availableQuantity || 0), // 计算缺少的数量
+            unit: item.unit,
+            category: item.category || 'others',
+          }));
 
-          for (const ingredient of outOfStock) {
-            try {
-              const item = await InventoryService.addToShoppingList({
-                userId,
-                name: ingredient.name,
-                quantity: ingredient.quantity,
-                unit: ingredient.unit,
-                category: ingredient.category || 'others',
-                // 添加食谱和膳食计划的信息
-                mealPlanId: id,
-                mealPlanName: mealPlanInfo?.recipeName || '未知食谱',
-                mealDate: mealPlanInfo?.date || new Date(),
-                mealType: mealPlanInfo?.mealType || '未知',
-              });
-
-              console.log(`Added item to shopping list: ${ingredient.name}`);
-              addedItems.push(item);
-            } catch (itemError) {
-              console.error(
-                `Error adding item ${ingredient.name} to shopping list:`,
-                itemError,
-              );
-            }
-          }
-
-          return res.status(201).json({
-            success: true,
-            message: 'Added out of stock ingredients to shopping list',
-            addedItems,
-          });
-        } catch (shoppingListError) {
-          console.error(
-            'Error accessing inventory service:',
-            shoppingListError,
+          // 确保数量大于0
+          const validLowStock = lowStockToAdd.filter(
+            (item) => item.quantity > 0,
           );
-          return res.status(500).json({
-            error: `Inventory service error: ${shoppingListError.message}`,
-            success: false,
-          });
+          ingredientsToAdd.push(...validLowStock);
         }
       } else {
         // 使用提供的食材数据
         console.log('Using ingredients provided in request:', ingredients);
+        ingredientsToAdd = ingredients;
+      }
 
-        try {
-          const InventoryService = require('../inventory/inventory.service');
-          const addedItems = [];
+      // 检查是否有食材需要添加
+      if (ingredientsToAdd.length === 0) {
+        console.log('No ingredients need to be added to shopping list');
+        return res.status(400).json({
+          error: 'No ingredients need to be added to shopping list',
+          success: false,
+        });
+      }
 
-          for (const ingredient of ingredients) {
-            try {
-              const item = await InventoryService.addToShoppingList({
-                userId,
-                name: ingredient.name,
-                quantity: ingredient.quantity,
-                unit: ingredient.unit,
-                category: ingredient.category || 'others',
-                // 添加食谱和膳食计划的信息
-                mealPlanId: id,
-                mealPlanName: mealPlanInfo?.recipeName || '未知食谱',
-                mealDate: mealPlanInfo?.date || new Date(),
-                mealType: mealPlanInfo?.mealType || '未知',
-              });
+      console.log('Adding ingredients to shopping list:', ingredientsToAdd);
 
-              console.log(`Added item to shopping list: ${ingredient.name}`);
-              addedItems.push(item);
-            } catch (itemError) {
-              console.error(
-                `Error adding item ${ingredient.name} to shopping list:`,
-                itemError,
-              );
-            }
+      try {
+        // 添加到购物清单
+        const InventoryService = require('../inventory/inventory.service');
+        const addedItems = [];
+
+        for (const ingredient of ingredientsToAdd) {
+          try {
+            console.log(
+              `==== Trying to add ingredient to shopping list: ${ingredient.name} ====`,
+            );
+            console.log(
+              'Ingredient data:',
+              JSON.stringify(ingredient, null, 2),
+            );
+
+            const item = await InventoryService.addToShoppingList({
+              userId,
+              name: ingredient.name,
+              requiredQuantity: ingredient.quantity,
+              toBuyQuantity: ingredient.quantity,
+              quantity: ingredient.quantity, // 兼容旧版本
+              unit: ingredient.unit,
+              category: ingredient.category || 'others',
+              // 添加食谱和膳食计划的信息
+              mealPlanId: id,
+              mealPlanName: mealPlanInfo?.recipeName || '未知食谱',
+              mealDate: mealPlanInfo?.date || new Date(),
+              mealType: mealPlanInfo?.mealType || '未知',
+            });
+
+            console.log(
+              `Successfully added item to shopping list: ${ingredient.name}, id: ${item._id}`,
+            );
+            addedItems.push(item);
+          } catch (itemError) {
+            console.error(
+              `ERROR adding item ${ingredient.name} to shopping list:`,
+              itemError.message,
+            );
+            console.error('Error stack:', itemError.stack);
           }
-
-          return res.status(201).json({
-            success: true,
-            message: 'Added ingredients to shopping list',
-            addedItems,
-          });
-        } catch (shoppingListError) {
-          console.error(
-            'Error accessing inventory service:',
-            shoppingListError,
-          );
-          return res.status(500).json({
-            error: `Inventory service error: ${shoppingListError.message}`,
-            success: false,
-          });
         }
+
+        return res.status(201).json({
+          success: true,
+          message: 'Added ingredients to shopping list',
+          addedItems,
+        });
+      } catch (shoppingListError) {
+        console.error('Error accessing inventory service:', shoppingListError);
+        return res.status(500).json({
+          error: `Inventory service error: ${shoppingListError.message}`,
+          success: false,
+        });
       }
     } catch (error) {
       console.error('Error adding to shopping list:', error);

@@ -31,7 +31,18 @@ const InventoryService = {
   async addToShoppingList(data) {
     try {
       // 检查是否已有相同名称的食材在购物清单中
-      console.log('Adding to shopping list:', data);
+      console.log('========== Adding to shopping list ==========');
+      console.log('Input data:', {
+        userId: data.userId,
+        name: data.name,
+        requiredQuantity: data.requiredQuantity,
+        toBuyQuantity: data.toBuyQuantity,
+        unit: data.unit,
+        category: data.category,
+        mealPlanId: data.mealPlanId,
+        mealPlanName: data.mealPlanName,
+      });
+
       const existingItem = await ShoppingListRepository.findItemByName(
         data.userId,
         data.name,
@@ -39,34 +50,53 @@ const InventoryService = {
 
       if (existingItem) {
         // 如果存在，更新数量
-        console.log('Found existing item in shopping list, updating quantity');
+        console.log(
+          `Found existing item in shopping list: ${existingItem.name}, current quantity: ${existingItem.requiredQuantity}, adding: ${data.requiredQuantity || 1}`,
+        );
         const updatedItem = await ShoppingListRepository.updateItem(
           existingItem.id,
           {
             requiredQuantity:
-              existingItem.requiredQuantity + (data.quantity || 1),
+              existingItem.requiredQuantity + (data.requiredQuantity || 1),
             // 确保保留其他属性
-            toBuyQuantity: existingItem.toBuyQuantity + (data.quantity || 1),
+            toBuyQuantity:
+              existingItem.toBuyQuantity +
+              (data.toBuyQuantity || data.requiredQuantity || 1),
+            // 兼容旧系统，同时更新quantity字段
+            quantity:
+              existingItem.requiredQuantity + (data.requiredQuantity || 1),
           },
+        );
+        console.log(
+          `Updated shopping list item: ${updatedItem.name}, new quantity: ${updatedItem.requiredQuantity}`,
         );
         return updatedItem;
       } else {
         // 不存在，创建新的购物清单项
-        console.log('Creating new item in shopping list');
+        console.log(
+          `Creating new shopping list item: ${data.name}, quantity: ${data.requiredQuantity || 1}`,
+        );
         const shoppingListItem = {
           userId: data.userId,
           name: data.name,
-          requiredQuantity: data.quantity || 1,
-          toBuyQuantity: data.quantity || 1,
+          requiredQuantity: data.requiredQuantity || 1,
+          toBuyQuantity: data.toBuyQuantity || data.requiredQuantity || 1,
+          // 兼容旧系统，同时设置quantity字段
+          quantity: data.requiredQuantity || 1,
           unit: data.unit || 'piece',
           category: data.category || 'others',
           isCompleted: false,
+          purchased: false, // 兼容旧系统
           priority: 'medium',
           notes: `从膳食计划"${data.mealPlanName || '未知'}"添加`,
           addedAt: new Date(),
         };
 
-        return await ShoppingListRepository.addItem(shoppingListItem);
+        const newItem = await ShoppingListRepository.addItem(shoppingListItem);
+        console.log(
+          `Added new shopping list item: ${newItem.name}, id: ${newItem._id}, isCompleted: ${newItem.isCompleted}`,
+        );
+        return newItem;
       }
     } catch (error) {
       console.error('Error in addToShoppingList service:', error);
