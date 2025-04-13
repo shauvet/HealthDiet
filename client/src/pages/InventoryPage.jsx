@@ -28,7 +28,9 @@ import {
   CircularProgress,
   Checkbox,
   Chip,
-  Autocomplete
+  Autocomplete,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
@@ -76,6 +78,11 @@ const InventoryPage = observer(() => {
   const [selectedItems, setSelectedItems] = useState([]);
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterStock, setFilterStock] = useState('all'); // 'all', 'inStock', 'outOfStock'
+  const [notification, setNotification] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
   
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -158,9 +165,8 @@ const InventoryPage = observer(() => {
   };
   
   const handleSelectAll = () => {
-    // Select all visible items
-    const visibleIngredients = filterIngredients();
-    setSelectedItems(visibleIngredients.map(i => i.id));
+    // Select all items in the shopping list
+    setSelectedItems(inventoryStore.shoppingList.map(item => item.id || item._id));
   };
   
   const handleDeselectAll = () => {
@@ -169,9 +175,31 @@ const InventoryPage = observer(() => {
   
   const handleMarkAsPurchased = async () => {
     if (selectedItems.length > 0) {
-      await inventoryStore.markAsPurchased(selectedItems);
-      setSelectedItems([]);
+      // Show optional loading state or message
+      const result = await inventoryStore.markAsPurchased(selectedItems);
+      if (result) {
+        // Clear selected items after successful purchase
+        setSelectedItems([]);
+        
+        // Show success notification
+        setNotification({
+          open: true,
+          message: '购买的食材已加入库存并根据菜单消耗量更新',
+          severity: 'success'
+        });
+      } else {
+        // Show error notification
+        setNotification({
+          open: true,
+          message: '更新库存失败，请重试',
+          severity: 'error'
+        });
+      }
     }
+  };
+  
+  const handleCloseNotification = () => {
+    setNotification(prev => ({ ...prev, open: false }));
   };
   
   const handleCategoryFilterChange = (e) => {
@@ -454,10 +482,18 @@ const InventoryPage = observer(() => {
                 color="primary"
                 startIcon={<ShoppingCartIcon />}
                 onClick={handleMarkAsPurchased}
+                disabled={inventoryStore.loading}
               >
-                已采购
+                {inventoryStore.loading ? (
+                  <>
+                    <CircularProgress size={20} sx={{ mr: 1 }} />
+                    处理中...
+                  </>
+                ) : (
+                  '已采购'
+                )}
               </Button>
-              <Button onClick={handleDeselectAll}>
+              <Button onClick={handleDeselectAll} disabled={inventoryStore.loading}>
                 取消选择
               </Button>
             </Box>
@@ -668,6 +704,17 @@ const InventoryPage = observer(() => {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Notification Snackbar */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
+        onClose={handleCloseNotification}
+      >
+        <Alert onClose={handleCloseNotification} severity={notification.severity}>
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 });

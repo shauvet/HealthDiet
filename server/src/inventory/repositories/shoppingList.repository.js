@@ -9,7 +9,7 @@ const ShoppingItem =
 class ShoppingListRepository {
   // 查找用户的购物清单
   async getUserShoppingList(userId) {
-    return await ShoppingItem.find({ userId });
+    return await ShoppingItem.find({ userId, isCompleted: false });
   }
 
   // 根据名称查找购物清单项

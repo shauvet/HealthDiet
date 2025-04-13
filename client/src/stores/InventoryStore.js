@@ -180,9 +180,17 @@ class InventoryStore {
   async markAsPurchased(ingredientIds) {
     this.loading = true;
     try {
-      await api.post('/inventory/purchased', { ingredientIds });
+      // Send the request to mark items as purchased
+      // The server should handle adding purchased items to inventory
+      // and updating quantities based on meal plan consumption
+      await api.post('/inventory/shopping-list/purchase-multiple', { 
+        ids: ingredientIds 
+      });
+      
+      // Refresh both shopping list and inventory data
       await this.fetchShoppingList();
       await this.fetchInventory();
+      
       runInAction(() => {
         this.error = null;
       });
