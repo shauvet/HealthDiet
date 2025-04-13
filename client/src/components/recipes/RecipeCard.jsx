@@ -25,7 +25,33 @@ import { observer } from 'mobx-react-lite';
 import { recipeStore, mealPlanStore } from '../../stores/RootStore';
 
 const RecipeCard = observer(({ recipe }) => {
-  const [isFavorite, setIsFavorite] = useState(recipe.favoriteId !== undefined || recipe.isFavorite || false);
+  
+  // 通过多种方式确保获取到id
+  const getRecipeId = () => {
+    // 尝试各种可能的id形式
+    if (recipe.id) return recipe.id;
+    if (recipe._id) return recipe._id;
+    if (recipe.recipeId) return recipe.recipeId;
+    if (recipe.favoriteId) return recipe.favoriteId;
+    
+    // 如果是MongoDB ObjectId对象，尝试获取其字符串表示
+    if (recipe.$id) return recipe.$id.toString();
+    
+    // 没有有效ID
+    return null;
+  };
+  
+  // 检查服务器返回的收藏状态
+  const isInitiallyFavorited = () => {
+    // 优先使用服务器明确标记的isFavorite属性
+    if (recipe.isFavorite !== undefined) return recipe.isFavorite;
+    // 如果有favoriteId，则认为已收藏
+    if (recipe.favoriteId !== undefined) return true;
+    // 默认为未收藏
+    return false;
+  };
+  
+  const [isFavorite, setIsFavorite] = useState(isInitiallyFavorited());
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [mealPlanData, setMealPlanData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -34,12 +60,22 @@ const RecipeCard = observer(({ recipe }) => {
   });
   
   const handleFavoriteToggle = async () => {
+    // 获取ID以用于API调用
+    const recipeId = getRecipeId();
+    
+    // 检查recipeId是否存在
+    if (!recipeId) {
+      console.error("Cannot favorite recipe without ID:", recipe);
+      return;
+    }
+    
     // Update local UI state optimistically
     setIsFavorite(!isFavorite);
     
     // Call API to update server state
     try {
-      await recipeStore.toggleFavorite(recipe.id, isFavorite);
+      console.log("Toggling favorite for recipe:", recipeId);
+      await recipeStore.toggleFavorite(recipeId, isFavorite);
     } catch (error) {
       // Revert local state on error
       setIsFavorite(isFavorite);
@@ -64,9 +100,18 @@ const RecipeCard = observer(({ recipe }) => {
   };
   
   const handleAddToMealPlanConfirm = async () => {
+    // 获取ID以用于API调用
+    const recipeId = getRecipeId();
+    
+    // 检查recipeId是否存在
+    if (!recipeId) {
+      console.error("Cannot add recipe to meal plan without ID:", recipe);
+      return;
+    }
+    
     try {
       await mealPlanStore.addMeal({
-        recipeId: recipe.id,
+        recipeId,
         ...mealPlanData
       });
       

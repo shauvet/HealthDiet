@@ -120,9 +120,40 @@ class RecipeRepository {
 
   // 获取推荐食谱
   async getRecommendedRecipes(userId, limit = 6) {
-    // 这里可以基于用户的历史记录、偏好等进行推荐
-    // 简单实现：随机推荐几个食谱
-    return await Recipe.aggregate([{ $sample: { size: limit } }]);
+    try {
+      // 获取推荐食谱
+      const recipes = await Recipe.aggregate([{ $sample: { size: limit } }]);
+
+      // 查找用户的所有收藏，用于检查食谱是否已收藏
+      const favorites = await FavoriteRecipe.find({ userId }).lean();
+      const favoriteIds = favorites.map((fav) => fav.recipeId.toString());
+
+      // 标记每个食谱的收藏状态
+      const recipesWithFavoriteStatus = recipes.map((recipe) => {
+        const recipeObj = recipe;
+        const isRecipeFavorited = favoriteIds.includes(recipe._id.toString());
+        // 添加isFavorite属性
+        recipeObj.isFavorite = isRecipeFavorited;
+
+        // 如果已收藏，添加favoriteId
+        if (isRecipeFavorited) {
+          const favorite = favorites.find(
+            (fav) => fav.recipeId.toString() === recipe._id.toString(),
+          );
+          if (favorite) {
+            recipeObj.favoriteId = favorite._id;
+          }
+        }
+
+        return recipeObj;
+      });
+
+      return recipesWithFavoriteStatus;
+    } catch (error) {
+      console.error('Error in getRecommendedRecipes:', error);
+      // 如果出错，返回无收藏状态的食谱
+      return await Recipe.aggregate([{ $sample: { size: limit } }]);
+    }
   }
 
   // 获取用户的个人食谱
@@ -135,13 +166,48 @@ class RecipeRepository {
     try {
       console.log(`尝试将食谱 ${recipeId} 添加到 ${userId} 的收藏中`);
 
-      // 直接创建收藏记录，不做任何类型转换
+      // 检查recipeId是否有效，并进行标准化处理
+      if (!recipeId || recipeId === 'undefined' || recipeId === 'null') {
+        console.error(`无效的recipeId: ${recipeId}`);
+        throw new Error('Invalid recipe ID');
+      }
+
+      // 尝试查找食谱以确认其存在
+      let recipeExists = false;
+
+      // 对于MongoDB ObjectId格式的ID
+      if (mongoose.Types.ObjectId.isValid(recipeId)) {
+        const recipe = await Recipe.findById(recipeId);
+        recipeExists = !!recipe;
+      }
+      // 对于数字格式的ID（模拟数据）
+      else if (!isNaN(parseInt(recipeId))) {
+        // 模拟数据的ID可以直接认为存在
+        recipeExists = true;
+      }
+
+      // 如果食谱不存在，记录警告但仍然允许添加收藏
+      if (!recipeExists) {
+        console.warn(`尝试收藏可能不存在的食谱: ${recipeId}`);
+      }
+
+      // 直接创建收藏记录，确保数据格式正确
       const favorite = new FavoriteRecipe({
         userId,
         recipeId, // 直接使用传入的recipeId，无论它是字符串还是ObjectId
         notes,
         // 如果是数字ID，也记录在mockRecipeId字段
         ...(!isNaN(parseInt(recipeId)) && { mockRecipeId: parseInt(recipeId) }),
+      });
+
+      // 保存收藏前记录日志
+      console.log(`Creating favorite with data:`, {
+        userId,
+        recipeId,
+        notes,
+        mockRecipeId: !isNaN(parseInt(recipeId))
+          ? parseInt(recipeId)
+          : undefined,
       });
 
       // 保存收藏
@@ -181,9 +247,13 @@ class RecipeRepository {
       // 获取收藏食谱的详细信息
       const result = [];
       for (const fav of favorites) {
+        // 确保总是有一个有效的id，优先使用recipeId，否则使用favoriteId
+        const recipeId = fav.recipeId || fav._id.toString();
+
         let recipeDetails = {
-          id: fav.recipeId,
-          favoriteId: fav._id,
+          // 确保id字段始终存在并且是字符串类型
+          id: recipeId.toString(),
+          favoriteId: fav._id.toString(),
           notes: fav.notes,
           createdAt: fav.createdAt,
           // 默认信息，当找不到食谱详情时使用
@@ -202,6 +272,8 @@ class RecipeRepository {
               recipeDetails.cookingTime = recipe.cookingTime;
               recipeDetails.imageUrl = recipe.imageUrl;
               recipeDetails.spiceLevel = recipe.spiceLevel;
+              // 额外确保从MongoDB获取的详情也有id字段
+              recipeDetails.id = recipe._id.toString();
             }
           }
           // 对于数字ID（模拟数据），尝试获取对应的模拟食谱数据
@@ -217,12 +289,20 @@ class RecipeRepository {
             };
             if (mockRecipes[fav.mockRecipeId]) {
               recipeDetails.name = mockRecipes[fav.mockRecipeId];
+              // 对于模拟数据，使用mockRecipeId作为id
+              recipeDetails.id = fav.mockRecipeId.toString();
             }
           }
         } catch (err) {
           console.error(`获取食谱 ${fav.recipeId} 详情失败:`, err);
-          // 继续使用默认值
+          // 继续使用默认值，但确保id字段存在
+          recipeDetails.id = recipeId.toString();
         }
+
+        console.log(`处理完成的食谱详情:`, {
+          id: recipeDetails.id,
+          name: recipeDetails.name,
+        });
 
         result.push(recipeDetails);
       }

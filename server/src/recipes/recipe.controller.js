@@ -164,6 +164,18 @@ const RecipeController = {
       const { recipeId } = req.params;
       const notes = req.body?.notes || '';
 
+      // 检查recipeId是否有效
+      if (!recipeId || recipeId === 'undefined' || recipeId === 'null') {
+        console.error('Invalid recipeId:', recipeId);
+        return res.status(400).json({
+          error: 'Invalid recipe ID',
+          details: {
+            providedId: recipeId,
+            message: 'Recipe ID cannot be undefined, null, or empty',
+          },
+        });
+      }
+
       console.log('Favoriting recipe with params:', {
         userId,
         recipeId,
@@ -185,7 +197,20 @@ const RecipeController = {
     } catch (error) {
       console.error('Error favoriting recipe:', error);
       console.error('Error stack:', error.stack);
-      res.status(500).json({ error: 'Failed to favorite recipe' });
+
+      // 提供更详细的错误响应
+      if (error.code === 11000) {
+        // 重复键错误 - 可能是用户已经收藏过这个食谱
+        return res.status(409).json({
+          error: 'Recipe already favorited',
+          details: error.keyValue,
+        });
+      }
+
+      res.status(500).json({
+        error: 'Failed to favorite recipe',
+        message: error.message,
+      });
     }
   },
 
@@ -197,16 +222,46 @@ const RecipeController = {
         req.userId || req.query.userId || '000000000000000000000001';
       const { recipeId } = req.params;
 
+      // 检查recipeId是否有效
+      if (!recipeId || recipeId === 'undefined' || recipeId === 'null') {
+        console.error('Invalid recipeId:', recipeId);
+        return res.status(400).json({
+          error: 'Invalid recipe ID',
+          details: {
+            providedId: recipeId,
+            message: 'Recipe ID cannot be undefined, null, or empty',
+          },
+        });
+      }
+
+      console.log('Unfavoriting recipe with params:', {
+        userId,
+        recipeId,
+      });
+
       const result = await RecipeService.unfavoriteRecipe(userId, recipeId);
 
       if (!result) {
-        return res.status(404).json({ error: 'Favorite not found' });
+        return res.status(404).json({
+          error: 'Favorite not found',
+          details: {
+            userId,
+            recipeId,
+          },
+        });
       }
 
-      res.json({ success: true, message: 'Recipe unfavorited successfully' });
+      res.json({
+        success: true,
+        message: 'Recipe unfavorited successfully',
+        recipeId,
+      });
     } catch (error) {
       console.error('Error unfavoriting recipe:', error);
-      res.status(500).json({ error: 'Failed to unfavorite recipe' });
+      res.status(500).json({
+        error: 'Failed to unfavorite recipe',
+        message: error.message,
+      });
     }
   },
 

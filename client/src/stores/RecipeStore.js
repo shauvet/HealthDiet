@@ -21,8 +21,18 @@ class RecipeStore {
     });
     try {
       const response = await api.get('/recipes/recommended');
+      
+      // 确保每个食谱都有id字段
+      const processedRecipes = response.data.map(recipe => {
+        // 如果没有id字段，使用_id作为id
+        if (!recipe.id && recipe._id) {
+          recipe.id = recipe._id.toString();
+        }
+        return recipe;
+      });
+      
       runInAction(() => {
-        this.recipes.recommended = response.data;
+        this.recipes.recommended = processedRecipes;
         this.error = null;
       });
     } catch (error) {
@@ -43,8 +53,18 @@ class RecipeStore {
     });
     try {
       const response = await api.get('/recipes/personal');
+      
+      // 确保每个食谱都有id字段
+      const processedRecipes = response.data.map(recipe => {
+        // 如果没有id字段，使用_id作为id
+        if (!recipe.id && recipe._id) {
+          recipe.id = recipe._id.toString();
+        }
+        return recipe;
+      });
+      
       runInAction(() => {
-        this.recipes.personal = response.data;
+        this.recipes.personal = processedRecipes;
         this.error = null;
       });
     } catch (error) {
@@ -65,8 +85,24 @@ class RecipeStore {
     });
     try {
       const response = await api.get('/recipes/favorites');
+      
+      // 收藏列表通常已经进行过标准化处理，但仍然需要检查
+      const processedRecipes = response.data.map(recipe => {
+        // 如果没有id字段但有其他ID字段，进行转换
+        if (!recipe.id) {
+          if (recipe._id) {
+            recipe.id = recipe._id.toString();
+          } else if (recipe.recipeId) {
+            recipe.id = recipe.recipeId.toString();
+          }
+        }
+        // 确保标记为已收藏
+        recipe.isFavorite = true;
+        return recipe;
+      });
+      
       runInAction(() => {
-        this.recipes.favorite = response.data;
+        this.recipes.favorite = processedRecipes;
         this.error = null;
       });
     } catch (error) {
@@ -83,20 +119,42 @@ class RecipeStore {
   // Toggle favorite status of a recipe
   async toggleFavorite(recipeId, isFavorite) {
     try {
+      // 参数验证
+      if (!recipeId) {
+        console.error("Cannot toggle favorite: Missing recipe ID");
+        throw new Error("Missing recipe ID");
+      }
+      
+      // 转换为字符串确保一致性
+      const id = recipeId.toString();
+      
+      console.log(`Toggling favorite for recipe: ${id}, current status: ${isFavorite ? 'favorited' : 'not favorited'}`);
+      
       if (isFavorite) {
         // 如果已收藏，则调用取消收藏接口
-        await api.delete(`/recipes/${recipeId}/favorite`);
+        await api.delete(`/recipes/${id}/favorite`);
       } else {
         // 如果未收藏，则调用添加收藏接口
-        await api.post(`/recipes/${recipeId}/favorite`);
+        await api.post(`/recipes/${id}/favorite`);
       }
+      
       // 更新收藏列表和推荐列表
       await this.fetchFavoriteRecipes();
       await this.fetchRecommendedRecipes();
+      
+      console.log(`Successfully ${isFavorite ? 'unfavorited' : 'favorited'} recipe: ${id}`);
+      return true;
     } catch (error) {
       runInAction(() => {
         this.error = error.message;
       });
+      
+      // 记录详细错误信息
+      console.error(`Error toggling favorite status for recipe ${recipeId}:`, error);
+      if (error.response) {
+        console.error("Server response:", error.response.data);
+      }
+      
       throw error; // 重新抛出错误，以便调用者可以处理
     }
   }
