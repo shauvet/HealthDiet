@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { observer } from 'mobx-react-lite';
 import { 
   Box, 
@@ -53,32 +53,47 @@ const RecipesPage = observer(() => {
     mealType: 'all'
   });
   
+  // 使用ref记录是否已经请求过数据，避免重复请求
+  const requestedTabs = useRef({
+    0: false, // recommended
+    1: false, // personal
+    2: false  // favorites
+  });
+  
+  // 为对话框关闭后的刷新添加标记
+  const dialogRefreshNeeded = useRef(false);
+  
   useEffect(() => {
-    // Load recommended recipes on initial render
-    recipeStore.fetchRecommendedRecipes();
-    recipeStore.fetchPersonalRecipes();
-    recipeStore.fetchFavoriteRecipes();
-  }, []);
+    // 只有当该标签页未请求过数据时才发起请求
+    if (!requestedTabs.current[tabValue]) {
+      // 标记该标签页已请求过数据
+      requestedTabs.current[tabValue] = true;
+      
+      if (tabValue === 0) {
+        recipeStore.fetchRecommendedRecipes();
+      } else if (tabValue === 1) {
+        recipeStore.fetchPersonalRecipes();
+      } else if (tabValue === 2) {
+        recipeStore.fetchFavoriteRecipes();
+      }
+    }
+  }, [tabValue]);
   
   // 当对话框关闭时，刷新个人菜谱列表
   useEffect(() => {
-    if (!isCreateDialogOpen) {
-      // 当创建菜谱对话框关闭后刷新数据
+    if (isCreateDialogOpen) {
+      // 对话框打开时，标记需要刷新
+      dialogRefreshNeeded.current = true;
+    } else if (dialogRefreshNeeded.current && tabValue === 1) {
+      // 当对话框关闭且有标记需要刷新且当前是个人菜谱标签时，刷新数据
+      dialogRefreshNeeded.current = false;
       recipeStore.fetchPersonalRecipes();
     }
-  }, [isCreateDialogOpen]);
+  }, [isCreateDialogOpen, tabValue]);
   
   const handleChangeTab = (event, newValue) => {
     setTabValue(newValue);
-    
-    // 当切换到个人菜谱或收藏菜谱标签时，刷新相应数据
-    if (newValue === 1) {
-      recipeStore.fetchPersonalRecipes();
-    } else if (newValue === 2) {
-      recipeStore.fetchFavoriteRecipes();
-    } else if (newValue === 0) {
-      recipeStore.fetchRecommendedRecipes();
-    }
+    // 数据加载由上面的 useEffect 处理，这里不需要重复调用
   };
   
   const handleSearch = async () => {
