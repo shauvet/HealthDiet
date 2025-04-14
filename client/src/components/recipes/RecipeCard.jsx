@@ -23,6 +23,7 @@ import AddIcon from '@mui/icons-material/Add';
 import FastfoodIcon from '@mui/icons-material/Fastfood';
 import { observer } from 'mobx-react-lite';
 import { recipeStore, mealPlanStore } from '../../stores/RootStore';
+import api from '../../api/axiosConfig';
 
 const RecipeCard = observer(({ recipe }) => {
   
@@ -105,6 +106,7 @@ const RecipeCard = observer(({ recipe }) => {
   };
   
   const handleAddToMealPlan = () => {
+    // 只打开弹框，不做其他操作
     setOpenAddDialog(true);
   };
   
@@ -131,10 +133,55 @@ const RecipeCard = observer(({ recipe }) => {
     }
     
     try {
-      await mealPlanStore.addMeal({
+      // 先添加膳食计划
+      const addedMeal = await mealPlanStore.addMeal({
         recipeId,
         ...mealPlanData
       });
+      
+      // 检查食材库存并添加缺货食材到购物清单
+      if (recipe.ingredients && recipe.ingredients.length > 0 && addedMeal && addedMeal._id) {
+        try {
+          // 使用刚添加的膳食计划ID来调用批量检查库存API
+          const checkResponse = await api.post(`/meal-plans/${addedMeal._id}/ingredients/batch-check`, {
+            ingredients: recipe.ingredients
+          });
+          
+          // 检查是否有库存不足的食材
+          if (checkResponse.data && 
+              (checkResponse.data.outOfStock?.length > 0 || checkResponse.data.lowStock?.length > 0)) {
+            
+            // 使用服务器端接口一次性添加所有缺货的食材到购物清单
+            await api.post(`/meal-plans/${addedMeal._id}/shopping-list/add`, {
+              ingredients: [
+                ...(checkResponse.data.outOfStock || []).map(item => ({
+                  name: item.name,
+                  requiredQuantity: Number(item.quantity) || 1,
+                  toBuyQuantity: Number(item.quantity) || 1,
+                  quantity: Number(item.quantity) || 1,
+                  unit: item.unit || 'g',
+                  category: item.category || 'others'
+                })),
+                ...(checkResponse.data.lowStock || []).map(item => {
+                  const availableQty = Number(item.availableQuantity) || 0;
+                  const requiredQty = Number(item.quantity) || 0;
+                  const missingQty = Math.max(requiredQty - availableQty, 0);
+                  return {
+                    name: item.name,
+                    requiredQuantity: missingQty || 1,
+                    toBuyQuantity: missingQty || 1,
+                    quantity: missingQty || 1,
+                    unit: item.unit || 'g',
+                    category: item.category || 'others'
+                  };
+                }).filter(item => item.quantity > 0)
+              ]
+            });
+          }
+        } catch (error) {
+          console.error("Failed to check ingredients or add to shopping list:", error);
+        }
+      }
       
       // Close dialog on success
       setOpenAddDialog(false);

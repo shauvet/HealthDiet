@@ -118,10 +118,6 @@ const InventoryPage = observer(() => {
         await inventoryStore.fetchShoppingList();
         console.log('Shopping list loaded successfully, starting automatic ingredient check...');
         
-        // 检查菜单食材，但不重复加载购物清单
-        await inventoryStore.checkAndAddMenuIngredientsToShoppingList(false);
-        console.log('Automatic ingredient check completed');
-        
         // 检查完成后再次加载购物清单（如果有添加新项目）
         if (tabValue === 1) { // 只有当当前标签是购物清单时才刷新
           await inventoryStore.fetchShoppingList();
