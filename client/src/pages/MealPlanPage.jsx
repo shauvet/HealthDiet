@@ -69,6 +69,7 @@ const MealPlanPage = observer(() => {
   const [success, setSuccess] = useState('');
   const [mealIngredientStatus, setMealIngredientStatus] = useState({});
   const todayCardRef = useRef(null);
+  const [ingredientsChecked, setIngredientsChecked] = useState(false);
   
   // Recipe ingredients dialog state
   const [openIngredientsDialog, setOpenIngredientsDialog] = useState(false);
@@ -96,7 +97,9 @@ const MealPlanPage = observer(() => {
   const fetchMeals = useCallback(async () => {
     setLoading(true);
     setError('');
+    setIngredientsChecked(false);
     try {
+      console.log('Fetching meal plans from', formatDateForAPI(dateRange.startDate), 'to', formatDateForAPI(dateRange.endDate));
       await mealPlanStore.fetchMealPlans(
         formatDateForAPI(dateRange.startDate),
         formatDateForAPI(dateRange.endDate)
@@ -114,17 +117,28 @@ const MealPlanPage = observer(() => {
     } finally {
       setLoading(false);
     }
-  }, [dateRange]);
+  }, [dateRange.startDate, dateRange.endDate]);
   
   useEffect(() => {
+    console.log('Initial fetch on component mount');
     fetchMeals();
-  }, [fetchMeals]);
+    // 仅在组件挂载时运行一次，依赖于fetchMeals
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   
   // Auto-check ingredients when meals are loaded
   useEffect(() => {
     const checkAllIngredients = async () => {
-      if (mealPlanStore.mealPlans.length > 0) {
+      // 只有当有膳食计划且不在加载状态且还没检查过食材时才检查
+      if (mealPlanStore.mealPlans.length > 0 && !loading && !ingredientsChecked) {
         console.log('Checking ingredients for meal plans:', mealPlanStore.mealPlans);
+        
+        // 检查是否已经有了配料状态信息，如果有就不需要再次检查
+        const firstMealId = String(mealPlanStore.mealPlans[0]._id || mealPlanStore.mealPlans[0].id);
+        if (mealIngredientStatus[firstMealId] && Object.keys(mealIngredientStatus[firstMealId]).length > 0) {
+          console.log('Ingredient status already loaded, skipping check');
+          return;
+        }
         
         // 创建一个Map存储每个膳食计划的ID和食材
         const allIngredients = [];
@@ -189,6 +203,7 @@ const MealPlanPage = observer(() => {
               
               console.log('Updated ingredient status:', newIngredientStatus);
               setMealIngredientStatus(newIngredientStatus);
+              setIngredientsChecked(true);
             }
           } catch (error) {
             console.error('Error using batch API:', error);
@@ -200,7 +215,7 @@ const MealPlanPage = observer(() => {
     if (!loading) {
       checkAllIngredients();
     }
-  }, [mealPlanStore.mealPlans, loading]);
+  }, [loading, ingredientsChecked, mealIngredientStatus]);
   
   // Auto-scroll to today's menu when data is loaded
   useEffect(() => {
@@ -273,6 +288,8 @@ const MealPlanPage = observer(() => {
     const newEndDate = new Date(newStartDate);
     newEndDate.setDate(newStartDate.getDate() + 6);
     setDateRange({ startDate: newStartDate, endDate: newEndDate, currentWeek: false });
+    // 重置食材检查状态，以便在日期范围变更后重新检查
+    setIngredientsChecked(false);
   };
   
   const handleNextWeek = () => {
@@ -281,6 +298,8 @@ const MealPlanPage = observer(() => {
     const newEndDate = new Date(newStartDate);
     newEndDate.setDate(newStartDate.getDate() + 6);
     setDateRange({ startDate: newStartDate, endDate: newEndDate, currentWeek: false });
+    // 重置食材检查状态，以便在日期范围变更后重新检查
+    setIngredientsChecked(false);
   };
   
   const handleCurrentWeek = () => {
@@ -292,6 +311,8 @@ const MealPlanPage = observer(() => {
     endDate.setDate(startDate.getDate() + 6);
     
     setDateRange({ startDate, endDate, currentWeek: true });
+    // 重置食材检查状态，以便在日期范围变更后重新检查
+    setIngredientsChecked(false);
   };
   
   const handleToggleMeal = (mealId) => {
@@ -459,8 +480,45 @@ const MealPlanPage = observer(() => {
       // Here we would call an API to update the recipe ingredients
       await recipeStore.updateRecipeIngredients(recipeId, editedIngredients);
       
-      // Refresh meal plans to get updated data
-      await fetchMeals();
+      // 更新本地状态而不是重新获取数据
+      // 这里我们可以手动更新当前膳食的食材信息
+      // 而不是重新调用 fetchMeals() 触发整个数据流程
+      
+      // 手动更新本地膳食计划数据
+      const updatedMealPlans = mealPlanStore.mealPlans.map(meal => {
+        // 检查是否是当前编辑的膳食
+        if ((meal._id === currentMeal._id) || (meal.id === currentMeal.id)) {
+          // 创建新的膳食对象，深拷贝
+          const updatedMeal = {...meal};
+          
+          // 根据数据结构决定如何更新食材
+          if (meal.ingredients) {
+            updatedMeal.ingredients = [...editedIngredients];
+          } else if (meal.recipe && meal.recipe.ingredients) {
+            updatedMeal.recipe = {
+              ...meal.recipe,
+              ingredients: [...editedIngredients]
+            };
+          } else if (meal.recipeId && typeof meal.recipeId === 'object') {
+            updatedMeal.recipeId = {
+              ...meal.recipeId,
+              ingredients: [...editedIngredients]
+            };
+          }
+          
+          return updatedMeal;
+        }
+        return meal;
+      });
+      
+      // 手动更新 MobX store 中的数据
+      mealPlanStore.mealPlans = updatedMealPlans;
+      
+      // 更新食材状态
+      if (currentMeal._id || currentMeal.id) {
+        // 为了简单起见，我们重置状态，让自动检查机制处理它
+        setIngredientsChecked(false);
+      }
       
       setSuccess('食材已更新');
       setTimeout(() => setSuccess(''), 3000);
@@ -518,6 +576,7 @@ const MealPlanPage = observer(() => {
     if (mealPlanStore.mealPlans.length === 0) return;
     
     setLoading(true);
+    setIngredientsChecked(false); // 重置状态以允许重新检查
     try {
       // 创建一个Map存储每个膳食计划的ID和食材
       const allIngredients = [];
