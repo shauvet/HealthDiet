@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { observer } from 'mobx-react-lite';
 import {
@@ -86,6 +86,8 @@ const InventoryPage = observer(() => {
   
   // 添加自动检查状态
   const [autoCheckingIngredients, setAutoCheckingIngredients] = useState(false);
+  // 添加一个ref来跟踪API是否已经调用过
+  const apiCalledRef = useRef(false);
   
   useEffect(() => {
     const tabParam = searchParams.get('tab');
@@ -95,23 +97,37 @@ const InventoryPage = observer(() => {
   }, [searchParams]);
   
   useEffect(() => {
+    // 使用ref避免严格模式下重复调用API
+    if (apiCalledRef.current) return;
+    
+    // 设置标志，防止重复调用
+    apiCalledRef.current = true;
+    
     // Load inventory on initial render
     console.log('===== InventoryPage: Loading inventory and starting auto check =====');
     
-    inventoryStore.fetchInventory()
-      .then(() => {
-        console.log('Inventory loaded successfully, fetching shopping list...');
-        return inventoryStore.fetchShoppingList();
-      })
-      .then(() => {
-        // 然后自动检查菜单食材与库存，添加缺少的食材到采购清单
+    // 改为单独的异步函数以便更好地控制流程
+    const loadData = async () => {
+      setAutoCheckingIngredients(true);
+      try {
+        // 首先加载库存数据
+        await inventoryStore.fetchInventory();
+        console.log('Inventory loaded successfully');
+        
+        // 然后只加载一次购物清单
+        await inventoryStore.fetchShoppingList();
         console.log('Shopping list loaded successfully, starting automatic ingredient check...');
-        setAutoCheckingIngredients(true);
-        return inventoryStore.checkAndAddMenuIngredientsToShoppingList();
-      })
-      .then(() => {
+        
+        // 检查菜单食材，但不重复加载购物清单
+        await inventoryStore.checkAndAddMenuIngredientsToShoppingList(false);
         console.log('Automatic ingredient check completed');
-        setAutoCheckingIngredients(false);
+        
+        // 检查完成后再次加载购物清单（如果有添加新项目）
+        if (tabValue === 1) { // 只有当当前标签是购物清单时才刷新
+          await inventoryStore.fetchShoppingList();
+          console.log('Shopping list refreshed after ingredient check');
+        }
+        
         // 如果有新的购物清单项被添加，显示通知
         if (inventoryStore.shoppingList.length > 0) {
           console.log(`Shopping list now has ${inventoryStore.shoppingList.length} items`);
@@ -123,12 +139,21 @@ const InventoryPage = observer(() => {
         } else {
           console.log('Shopping list is empty after check');
         }
-      })
-      .catch(error => {
-        console.error('Error during automatic ingredient check:', error);
+      } catch (error) {
+        console.error('Error during data loading:', error);
+      } finally {
         setAutoCheckingIngredients(false);
-      });
-  }, []);
+      }
+    };
+    
+    loadData();
+    
+    // 添加清理函数
+    return () => {
+      // 可以在组件卸载时做一些清理工作
+      console.log('InventoryPage unmounting, cleaning up');
+    };
+  }, [tabValue]);
   
   const handleChangeTab = (event, newValue) => {
     setTabValue(newValue);

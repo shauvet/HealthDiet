@@ -229,7 +229,7 @@ class InventoryStore {
   }
   
   // 自动检查已点菜单中食材与库存进行比对，并将不足的食材添加到采购清单
-  async checkAndAddMenuIngredientsToShoppingList() {
+  async checkAndAddMenuIngredientsToShoppingList(refreshShoppingList = false) {
     runInAction(() => {
       this.loading = true;
     });
@@ -386,8 +386,10 @@ class InventoryStore {
         console.error('Error in batch checking ingredients:', batchError);
       }
       
-      // 完成后，刷新购物清单
-      await this.fetchShoppingList();
+      // 只有当参数为true时才刷新购物清单
+      if (refreshShoppingList) {
+        await this.fetchShoppingList();
+      }
       
       runInAction(() => {
         this.error = null;
