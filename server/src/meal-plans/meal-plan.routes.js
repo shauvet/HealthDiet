@@ -13,6 +13,11 @@ router.get(
   '/:id/ingredients/check',
   MealPlanController.checkIngredientAvailability,
 );
+// 新增批量查询库存的路由
+router.post(
+  '/:id/ingredients/batch-check',
+  MealPlanController.batchCheckIngredientAvailability,
+);
 
 // 添加新的路由，用于将缺货食材添加到购物清单
 router.post(

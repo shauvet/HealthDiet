@@ -78,6 +78,7 @@ class UserStore {
   // Logout user
   logout() {
     localStorage.removeItem('token');
+    localStorage.removeItem('userProfileCache');
     runInAction(() => {
       this.currentUser = null;
       this.isAuthenticated = false;
@@ -86,7 +87,6 @@ class UserStore {
   
   // Check if token is valid and fetch user data
   async checkAuth() {
-    // 首次检查时设置loading为true
     runInAction(() => {
       this.loading = true;
     });
@@ -100,9 +100,44 @@ class UserStore {
       return false;
     }
     
+    // 如果已经有用户信息，那么不需要再发请求
+    if (this.currentUser && Object.keys(this.currentUser).length > 0) {
+      runInAction(() => {
+        this.isAuthenticated = true;
+        this.loading = false;
+      });
+      return true;
+    }
+    
+    // 添加缓存时间检查
+    const userProfileCache = localStorage.getItem('userProfileCache');
+    const now = new Date().getTime();
+    
+    if (userProfileCache) {
+      const { data, timestamp } = JSON.parse(userProfileCache);
+      // 如果缓存的用户信息在10分钟内，直接使用缓存
+      if (now - timestamp < 10 * 60 * 1000) {
+        runInAction(() => {
+          this.currentUser = data;
+          this.isAuthenticated = true;
+          this.error = null;
+          this.loading = false;
+        });
+        console.log('Using cached user profile');
+        return true;
+      }
+    }
+    
     try {
       // 直接调用API，不要嵌套调用fetchCurrentUser以避免多次设置loading状态
       const response = await api.get('/users/profile');
+      
+      // 缓存用户信息到localStorage
+      localStorage.setItem('userProfileCache', JSON.stringify({
+        data: response.data,
+        timestamp: now
+      }));
+      
       runInAction(() => {
         this.currentUser = response.data;
         this.isAuthenticated = true;
@@ -113,6 +148,7 @@ class UserStore {
     } catch (error) {
       console.log(error);
       localStorage.removeItem('token');
+      localStorage.removeItem('userProfileCache');
       runInAction(() => {
         this.isAuthenticated = false;
         this.loading = false;
@@ -128,6 +164,13 @@ class UserStore {
     });
     try {
       const response = await api.get('/users/profile');
+      
+      // 更新缓存
+      localStorage.setItem('userProfileCache', JSON.stringify({
+        data: response.data,
+        timestamp: new Date().getTime()
+      }));
+      
       runInAction(() => {
         this.currentUser = response.data;
         this.error = null;
@@ -151,6 +194,13 @@ class UserStore {
     });
     try {
       const response = await api.patch('/users/profile', profileData);
+      
+      // 更新缓存
+      localStorage.setItem('userProfileCache', JSON.stringify({
+        data: response.data,
+        timestamp: new Date().getTime()
+      }));
+      
       runInAction(() => {
         this.currentUser = response.data;
         this.error = null;

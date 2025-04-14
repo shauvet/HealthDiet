@@ -127,46 +127,20 @@ class MealPlanStore {
       this.loading = true;
     });
     try {
-      // Log the meal ID for debugging
-      console.log('Checking ingredients for meal ID:', mealId, 'Type:', typeof mealId);
+      console.log('Checking ingredient availability for meal:', mealId);
       
+      // 如果没有提供mealId，尝试使用当前选择的膳食计划ID
       let effectiveMealId = mealId;
       
-      // 特殊处理：对于简单ID "1"，直接使用第一个可用的膳食计划
-      if (effectiveMealId === 1 || effectiveMealId === '1') {
-        console.log('Special case: ID is 1, using first available meal plan');
-        if (this.mealPlans.length > 0) {
-          // 使用第一个可用的膳食计划ID
+      // 如果仍然没有effectiveMealId，尝试从已加载的膳食计划中获取第一个
+      if (!effectiveMealId) {
+        console.log('No meal ID provided, trying to use first available plan');
+        
+        // 尝试从已加载的膳食计划中获取第一个
+        if (this.mealPlans && this.mealPlans.length > 0) {
           const firstMeal = this.mealPlans[0];
           effectiveMealId = firstMeal._id || firstMeal.id;
-          console.log('Using first meal plan ID instead:', effectiveMealId);
-        } else {
-          console.log('No available meals in store to use as fallback');
-        }
-      }
-      // If mealId is a number or a simple string like "1", try to get a proper ID from mealPlans
-      else if (typeof effectiveMealId === 'number' || (typeof effectiveMealId === 'string' && /^\d+$/.test(effectiveMealId))) {
-        console.log('Received simple numeric ID, searching for matching meal plan...');
-        
-        // Find the meal in our local state that has a matching simple ID
-        const matchingMeal = this.mealPlans.find(meal => {
-          const simpleId = (meal.id && typeof meal.id === 'string') ? meal.id : '';
-          const mongoId = (meal._id && typeof meal._id === 'string') ? meal._id : '';
-          return simpleId === String(effectiveMealId) || mongoId.includes(String(effectiveMealId));
-        });
-        
-        if (matchingMeal) {
-          // Use the MongoDB ObjectId instead
-          effectiveMealId = matchingMeal._id || matchingMeal.id;
-          console.log('Found matching meal plan, using ID:', effectiveMealId);
-        } else {
-          console.log('No matching meal found for ID', effectiveMealId);
-          if (this.mealPlans.length > 0) {
-            // 如果找不到匹配的，使用第一个作为备选
-            const firstMeal = this.mealPlans[0];
-            effectiveMealId = firstMeal._id || firstMeal.id;
-            console.log('Using first meal as fallback, ID:', effectiveMealId);
-          }
+          console.log('Using first available meal ID:', effectiveMealId);
         }
       }
       
@@ -180,23 +154,85 @@ class MealPlanStore {
       console.log('Final ID for API call:', effectiveMealId);
       
       try {
-        const response = await api.get(`/meal-plans/${effectiveMealId}/ingredients/check`);
+        // 1. 首先获取膳食计划详情来获取所有食材信息
+        let mealPlanDetails = null;
+        try {
+          // 获取膳食计划详情
+          const detailsResponse = await api.get(`/meal-plans/${effectiveMealId}`);
+          mealPlanDetails = detailsResponse.data;
+        } catch (detailsError) {
+          console.error('Failed to get meal plan details:', detailsError);
+        }
+        
+        // 如果获取不到详情或没有配料信息，回退到原来的单个检查方式
+        if (!mealPlanDetails || !mealPlanDetails.ingredients || !Array.isArray(mealPlanDetails.ingredients)) {
+          console.log('No ingredients found in meal plan, falling back to single check');
+          const response = await api.get(`/meal-plans/${effectiveMealId}/ingredients/check`);
+          
+          // 检查响应是否有效并处理结果...
+          if (!response || !response.data) {
+            console.error('Invalid response from API:', response);
+            // 返回默认对象
+            return {
+              available: [],
+              outOfStock: [{ name: "获取食材失败", quantity: 1, unit: "个" }],
+              lowStock: [],
+              mealPlanFound: false,
+              apiError: true
+            };
+          }
+          
+          // 返回API的响应数据，即使它包含错误
+          console.log('API response data:', response.data);
+          
+          // 确保返回的数据格式正确
+          const result = {
+            available: Array.isArray(response.data.available) ? response.data.available : [],
+            outOfStock: Array.isArray(response.data.outOfStock) ? response.data.outOfStock : [],
+            lowStock: Array.isArray(response.data.lowStock) ? response.data.lowStock : [],
+            mealPlanFound: response.data.mealPlanFound || false
+          };
+          
+          // 如果没有有效的数据，添加一个默认项
+          if (result.available.length === 0 && result.outOfStock.length === 0 && result.lowStock.length === 0) {
+            result.outOfStock = [{ name: "示例食材", quantity: 1, unit: "个" }];
+          }
+          
+          // 如果API返回了错误，但没有食材数据，添加一个默认项
+          if (response.data.error && result.outOfStock.length === 0) {
+            result.outOfStock = [{ name: "食材库存不足", quantity: 1, unit: "个" }];
+          }
+          
+          runInAction(() => {
+            this.error = null;
+          });
+          
+          return result;
+        }
+        
+        // 2. 使用批量检查接口
+        console.log('Using batch check API with ingredients:', mealPlanDetails.ingredients);
+        
+        // 调用批量检查接口
+        const response = await api.post(`/meal-plans/${effectiveMealId}/ingredients/batch-check`, {
+          ingredients: mealPlanDetails.ingredients
+        });
         
         // 检查响应是否有效
         if (!response || !response.data) {
-          console.error('Invalid response from API:', response);
+          console.error('Invalid response from batch API:', response);
           // 返回默认对象
           return {
             available: [],
-            outOfStock: [{ name: "获取食材失败", quantity: 1, unit: "个" }],
+            outOfStock: [{ name: "批量检查食材失败", quantity: 1, unit: "个" }],
             lowStock: [],
             mealPlanFound: false,
             apiError: true
           };
         }
         
-        // 返回API的响应数据，即使它包含错误
-        console.log('API response data:', response.data);
+        // 返回API的响应数据
+        console.log('Batch API response data:', response.data);
         
         // 确保返回的数据格式正确
         const result = {

@@ -307,6 +307,52 @@ const MealPlanController = {
     }
   },
 
+  // 批量检查膳食计划所需配料的库存情况
+  async batchCheckIngredientAvailability(req, res) {
+    try {
+      const { id } = req.params;
+      // 从请求中获取用户ID
+      const userId =
+        req.userId || req.body.userId || '000000000000000000000001';
+
+      // 从请求体中获取食材数据
+      const { ingredients } = req.body;
+
+      if (
+        !ingredients ||
+        !Array.isArray(ingredients) ||
+        ingredients.length === 0
+      ) {
+        return res.status(400).json({
+          error: '请求需要包含食材列表',
+          success: false,
+        });
+      }
+
+      console.log(
+        `Processing batch ingredient check for mealPlanId ${id} and userId ${userId} with ${ingredients.length} ingredients`,
+      );
+
+      const result = await MealPlanService.batchCheckIngredientAvailability(
+        userId,
+        id,
+        ingredients,
+      );
+
+      // If there's a mealPlan property in the result, transform it
+      if (result && result.mealPlan) {
+        result.mealPlan = transformMealPlans(result.mealPlan);
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error('Error batch checking ingredient availability:', error);
+      res
+        .status(500)
+        .json({ error: 'Failed to batch check ingredient availability' });
+    }
+  },
+
   // 将缺货食材添加到购物清单
   async addOutOfStockToShoppingList(req, res) {
     try {

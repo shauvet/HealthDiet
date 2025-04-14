@@ -401,6 +401,123 @@ const MealPlanService = {
       };
     }
   },
+
+  // 批量检查食材库存情况
+  async batchCheckIngredientAvailability(userId, mealPlanId, ingredients) {
+    try {
+      // 使用现有的方法获取膳食计划信息，确保它存在
+      let mealPlan = null;
+
+      if (mongoose.Types.ObjectId.isValid(mealPlanId)) {
+        try {
+          const objectId = new mongoose.Types.ObjectId(mealPlanId);
+          mealPlan = await MealPlanRepository.getMealPlanById(objectId);
+        } catch (err) {
+          console.error('Error getting meal plan by ObjectId:', err);
+        }
+      }
+
+      // 如果未找到膳食计划，返回错误
+      if (!mealPlan) {
+        return {
+          available: [],
+          outOfStock: [],
+          lowStock: [],
+          error: `Meal plan not found with ID: ${mealPlanId}`,
+        };
+      }
+
+      try {
+        // 获取用户库存
+        const InventoryRepository = require('../inventory/repositories/inventory.repository');
+        const userInventory =
+          await InventoryRepository.getUserInventory(userId);
+
+        // 分析配料和库存情况
+        const available = [];
+        const outOfStock = [];
+        const lowStock = [];
+
+        // 处理请求中传来的批量食材
+        if (Array.isArray(ingredients)) {
+          ingredients.forEach((ingredient) => {
+            // 确保食材对象包含必要的字段
+            const validIngredient = {
+              name: ingredient.name || '未知食材',
+              quantity: parseFloat(ingredient.quantity) || 1,
+              unit: ingredient.unit || 'g',
+              category: ingredient.category || 'others',
+            };
+
+            // 找到库存中对应的食材
+            const inventoryItem = userInventory.find(
+              (item) =>
+                (item &&
+                  validIngredient &&
+                  item.name &&
+                  validIngredient.name &&
+                  item.name.toLowerCase() ===
+                    validIngredient.name.toLowerCase()) ||
+                (item.alternativeNames &&
+                  item.alternativeNames.some(
+                    (name) =>
+                      name.toLowerCase() === validIngredient.name.toLowerCase(),
+                  )),
+            );
+
+            // 根据需要数量和库存数量进行判断
+            if (!inventoryItem) {
+              outOfStock.push(validIngredient);
+            } else if (inventoryItem.quantity < validIngredient.quantity) {
+              lowStock.push({
+                ...validIngredient,
+                availableQuantity: inventoryItem.quantity,
+              });
+            } else {
+              available.push(validIngredient);
+            }
+          });
+        }
+
+        // 获取食谱信息用于结果返回
+        const recipe = mealPlan.recipeId;
+        const recipeName = recipe?.name || '未知食谱';
+
+        return {
+          available,
+          outOfStock,
+          lowStock,
+          mealPlanFound: true,
+          noIngredients:
+            available.length === 0 &&
+            outOfStock.length === 0 &&
+            lowStock.length === 0,
+          recipeName,
+          batchProcessed: true,
+          totalIngredients: ingredients.length,
+        };
+      } catch (inventoryError) {
+        console.error('Error checking inventory:', inventoryError);
+        return {
+          available: [],
+          outOfStock: [],
+          lowStock: [],
+          mealPlanFound: true,
+          inventoryError: true,
+          errorMessage: inventoryError.message,
+        };
+      }
+    } catch (error) {
+      console.error('Error in batchCheckIngredientAvailability:', error);
+      return {
+        available: [],
+        outOfStock: [],
+        lowStock: [],
+        mealPlanFound: false,
+        errorMessage: error.message,
+      };
+    }
+  },
 };
 
 module.exports = MealPlanService;

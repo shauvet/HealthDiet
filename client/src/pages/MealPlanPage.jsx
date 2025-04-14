@@ -1,46 +1,57 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { observer } from 'mobx-react-lite';
 import {
   Box,
   Typography,
-  Paper,
-  Grid,
-  Button,
-  IconButton,
   Card,
   CardContent,
   CardHeader,
-  Divider,
+  Button,
+  IconButton,
   List,
   ListItem,
   ListItemText,
+  ListItemIcon,
   ListItemSecondaryAction,
-  Checkbox,
+  CircularProgress,
+  Grid,
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogContentText,
   DialogActions,
-  Chip,
-  CircularProgress,
-  Alert,
-  Tooltip,
+  DialogContentText,
   TextField,
+  MenuItem,
+  Paper,
+  Tooltip,
+  Chip,
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  Icon,
+  Alert,
+  Rating,
+  Checkbox
 } from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import TodayIcon from '@mui/icons-material/Today';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import AddIcon from '@mui/icons-material/Add';
-import InfoIcon from '@mui/icons-material/Info';
+import {
+  AccessTime as AccessTimeIcon,
+  Restaurant as RestaurantIcon,
+  Delete as DeleteIcon,
+  Info as InfoIcon,
+  AddShoppingCart as ShoppingCartIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  Today as TodayIcon,
+  CheckCircle as CheckCircleIcon,
+  Warning as WarningIcon,
+  Error as ErrorIcon,
+  Add as AddIcon,
+  Remove as RemoveIcon
+} from '@mui/icons-material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { mealPlanStore, inventoryStore, recipeStore } from '../stores/RootStore';
+import api from '../api/axiosConfig';
 
 const initialIngredient = {
   name: '',
@@ -115,52 +126,74 @@ const MealPlanPage = observer(() => {
       if (mealPlanStore.mealPlans.length > 0) {
         console.log('Checking ingredients for meal plans:', mealPlanStore.mealPlans);
         
-        const statusPromises = mealPlanStore.mealPlans.map(async (meal) => {
+        // 创建一个Map存储每个膳食计划的ID和食材
+        const allIngredients = [];
+        const mealIdMap = new Map();
+        
+        // 收集所有膳食计划的所有食材
+        mealPlanStore.mealPlans.forEach(meal => {
+          const mealId = String(meal._id || meal.id);
+          mealIdMap.set(mealId, meal);
+          
+          // 从膳食计划中获取食材
+          let ingredients = [];
+          
+          // 如果膳食计划有直接的食材列表
+          if (meal.ingredients && Array.isArray(meal.ingredients)) {
+            ingredients = meal.ingredients;
+          }
+          // 如果食谱对象中包含食材列表
+          else if (meal.recipe && meal.recipe.ingredients && Array.isArray(meal.recipe.ingredients)) {
+            ingredients = meal.recipe.ingredients;
+          }
+          // 如果recipeId对象中包含食材列表
+          else if (meal.recipeId && typeof meal.recipeId === 'object' && 
+                  meal.recipeId.ingredients && Array.isArray(meal.recipeId.ingredients)) {
+            ingredients = meal.recipeId.ingredients;
+          }
+          
+          // 如果找到食材，将它们添加到总列表
+          if (ingredients && ingredients.length > 0) {
+            allIngredients.push(...ingredients);
+          }
+        });
+        
+        // 如果有食材，使用批量检查接口
+        if (allIngredients.length > 0) {
           try {
-            // 获取有效的ID
-            let mealId = meal._id || meal.id;
+            // 使用批量检查接口，传递第一个膳食计划ID
+            const firstMealId = mealIdMap.keys().next().value;
+            console.log(`Using batch API with ${allIngredients.length} ingredients`);
             
-            // 确保mealId是字符串类型
-            mealId = String(mealId);
+            const status = await api.post(`/meal-plans/${firstMealId}/ingredients/batch-check`, {
+              ingredients: allIngredients
+            });
             
-            console.log(`Checking ingredients for meal: ${meal.recipe?.name || 'Unknown'}, ID: ${mealId}`);
-            
-            const status = await mealPlanStore.checkIngredientAvailability(mealId);
-            return { mealId, status, meal };
+            // 处理结果并更新状态
+            if (status && status.data) {
+              // 将相同的结果应用于所有膳食计划
+              const newIngredientStatus = {};
+              
+              // 为每个膳食计划分配相同的状态结果
+              mealIdMap.forEach((meal, mealId) => {
+                newIngredientStatus[mealId] = status.data;
+                
+                // 同时为meal.id和meal._id都存储状态，确保在UI中能够找到
+                if (meal.id) {
+                  newIngredientStatus[String(meal.id)] = status.data;
+                }
+                if (meal._id) {
+                  newIngredientStatus[String(meal._id)] = status.data;
+                }
+              });
+              
+              console.log('Updated ingredient status:', newIngredientStatus);
+              setMealIngredientStatus(newIngredientStatus);
+            }
           } catch (error) {
-            console.error(`Failed to check ingredients for meal ${meal.id || meal._id}:`, error);
-            return { 
-              mealId: String(meal.id || meal._id), 
-              status: { outOfStock: [], lowStock: [] },
-              meal 
-            };
+            console.error('Error using batch API:', error);
           }
-        });
-        
-        const statuses = await Promise.all(statusPromises);
-        const newIngredientStatus = {};
-        
-        statuses.forEach(({ mealId, status, meal }) => {
-          if (!status) {
-            console.warn(`No status returned for meal ID: ${mealId}`);
-            return;
-          }
-          
-          // 存储状态时使用两个键：mealId和meal的id或_id
-          // 这样无论前端使用哪个ID都能找到正确的状态
-          newIngredientStatus[mealId] = status;
-          
-          // 同时为meal.id和meal._id都存储状态，确保在UI中能够找到
-          if (meal.id) {
-            newIngredientStatus[String(meal.id)] = status;
-          }
-          if (meal._id) {
-            newIngredientStatus[String(meal._id)] = status;
-          }
-        });
-        
-        console.log('Updated ingredient status:', newIngredientStatus);
-        setMealIngredientStatus(newIngredientStatus);
+        }
       }
     };
     
@@ -486,35 +519,76 @@ const MealPlanPage = observer(() => {
     
     setLoading(true);
     try {
-      const promises = mealPlanStore.mealPlans.map(async (meal) => {
-        const mealId = String(meal._id || meal.id || '');
-        if (!mealId) return null;
+      // 创建一个Map存储每个膳食计划的ID和食材
+      const allIngredients = [];
+      const mealIdMap = new Map();
+      
+      // 收集所有膳食计划的所有食材
+      mealPlanStore.mealPlans.forEach(meal => {
+        const mealId = String(meal._id || meal.id);
+        mealIdMap.set(mealId, meal);
         
+        // 从膳食计划中获取食材
+        let ingredients = [];
+        
+        // 如果膳食计划有直接的食材列表
+        if (meal.ingredients && Array.isArray(meal.ingredients)) {
+          ingredients = meal.ingredients;
+        }
+        // 如果食谱对象中包含食材列表
+        else if (meal.recipe && meal.recipe.ingredients && Array.isArray(meal.recipe.ingredients)) {
+          ingredients = meal.recipe.ingredients;
+        }
+        // 如果recipeId对象中包含食材列表
+        else if (meal.recipeId && typeof meal.recipeId === 'object' && 
+                meal.recipeId.ingredients && Array.isArray(meal.recipeId.ingredients)) {
+          ingredients = meal.recipeId.ingredients;
+        }
+        
+        // 如果找到食材，将它们添加到总列表
+        if (ingredients && ingredients.length > 0) {
+          allIngredients.push(...ingredients);
+        }
+      });
+      
+      // 如果有食材，使用批量检查接口
+      if (allIngredients.length > 0) {
         try {
-          const status = await mealPlanStore.checkIngredientAvailability(mealId);
-          return { mealId, status, meal };
-        } catch (error) {
-          console.error(`Failed to check ingredients for meal ${mealId}:`, error);
-          return null;
-        }
-      });
-      
-      const results = await Promise.all(promises);
-      const newStatus = { ...mealIngredientStatus };
-      
-      results.forEach(result => {
-        if (!result) return;
-        
-        const { mealId, status, meal } = result;
-        if (mealId && status) {
-          newStatus[mealId] = status;
+          // 使用批量检查接口，传递第一个膳食计划ID
+          const firstMealId = mealIdMap.keys().next().value;
+          console.log(`Using batch API with ${allIngredients.length} ingredients`);
           
-          if (meal.id) newStatus[String(meal.id)] = status;
-          if (meal._id) newStatus[String(meal._id)] = status;
+          const response = await api.post(`/meal-plans/${firstMealId}/ingredients/batch-check`, {
+            ingredients: allIngredients
+          });
+          
+          // 处理结果并更新状态
+          if (response && response.data) {
+            // 将相同的结果应用于所有膳食计划
+            const newIngredientStatus = { ...mealIngredientStatus };
+            
+            // 为每个膳食计划分配相同的状态结果
+            mealIdMap.forEach((meal, mealId) => {
+              newIngredientStatus[mealId] = response.data;
+              
+              // 同时为meal.id和meal._id都存储状态，确保在UI中能够找到
+              if (meal.id) {
+                newIngredientStatus[String(meal.id)] = response.data;
+              }
+              if (meal._id) {
+                newIngredientStatus[String(meal._id)] = response.data;
+              }
+            });
+            
+            setMealIngredientStatus(newIngredientStatus);
+          }
+        } catch (error) {
+          console.error('Error using batch API:', error);
+          setError('更新食材状态失败: ' + error.message);
+          return;
         }
-      });
+      }
       
-      setMealIngredientStatus(newStatus);
       setSuccess('已更新所有食材状态');
       setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
@@ -790,17 +864,8 @@ const MealPlanPage = observer(() => {
                                         <IconButton
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            // Try checking ingredients again
-                                            const mealId = meal._id || meal.id;
-                                            mealPlanStore.checkIngredientAvailability(mealId).then(status => {
-                                              setMealIngredientStatus(prev => ({
-                                                ...prev,
-                                                [mealId]: status,
-                                                // 同时更新两个ID的状态
-                                                [meal._id]: status,
-                                                [meal.id]: status
-                                              }));
-                                            });
+                                            // 调用通用的强制更新方法，而不是单独为每个食谱调用API
+                                            forceUpdateAllIngredientStatus();
                                           }}
                                           color="warning"
                                           size="small"
