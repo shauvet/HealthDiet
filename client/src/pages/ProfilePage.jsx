@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { observer } from 'mobx-react-lite';
 import {
   Box,
@@ -126,7 +126,16 @@ const ProfilePage = observer(() => {
     severity: 'success'
   });
   
+  // 添加ref来跟踪API是否已经调用
+  const apiCalledRef = useRef(false);
+  
   useEffect(() => {
+    // 使用ref避免严格模式下重复调用API
+    if (apiCalledRef.current) return;
+    
+    // 设置标志，防止重复调用
+    apiCalledRef.current = true;
+    
     // Load user profile and family members on initial render
     if (userStore.currentUser) {
       setProfileData({
@@ -146,7 +155,14 @@ const ProfilePage = observer(() => {
       userStore.fetchCurrentUser();
     }
     
+    // 只调用一次fetchFamilyMembers
     userStore.fetchFamilyMembers();
+    
+    // 添加清理函数
+    return () => {
+      // 可以在组件卸载时做一些清理工作
+      console.log('ProfilePage unmounting, cleaning up');
+    };
   }, []);
   
   const handleTabChange = (event, newValue) => {
@@ -232,31 +248,46 @@ const ProfilePage = observer(() => {
   
   const handleSaveMember = async () => {
     try {
+      let success = false;
+      
       if (editingMember) {
-        await userStore.updateFamilyMember(editingMember.id, memberData);
-        setAlertInfo({
-          open: true,
-          message: '家庭成员信息已更新',
-          severity: 'success'
-        });
+        success = await userStore.updateFamilyMember(editingMember.id, memberData);
+        if (success) {
+          setAlertInfo({
+            open: true,
+            message: '家庭成员信息已更新',
+            severity: 'success'
+          });
+        }
       } else {
-        await userStore.addFamilyMember(memberData);
-        setAlertInfo({
-          open: true,
-          message: '已添加新家庭成员',
-          severity: 'success'
-        });
+        success = await userStore.addFamilyMember(memberData);
+        if (success) {
+          setAlertInfo({
+            open: true,
+            message: '已添加新家庭成员',
+            severity: 'success'
+          });
+        }
       }
       
-      handleCloseDialog();
-      
-      // Auto close the alert after 3 seconds
-      setTimeout(() => {
+      if (success) {
+        // 关闭对话框
+        handleCloseDialog();
+        
+        // 自动关闭提示
+        setTimeout(() => {
+          setAlertInfo(prev => ({
+            ...prev,
+            open: false
+          }));
+        }, 3000);
+      } else {
         setAlertInfo({
-          ...alertInfo,
-          open: false
+          open: true,
+          message: '操作失败，请重试',
+          severity: 'error'
         });
-      }, 3000);
+      }
     } catch (error) {
       setAlertInfo({
         open: true,
@@ -269,20 +300,29 @@ const ProfilePage = observer(() => {
   const handleRemoveMember = async (memberId) => {
     if (window.confirm('确定要删除这个家庭成员吗？')) {
       try {
-        await userStore.removeFamilyMember(memberId);
-        setAlertInfo({
-          open: true,
-          message: '已删除家庭成员',
-          severity: 'success'
-        });
+        const success = await userStore.removeFamilyMember(memberId);
         
-        // Auto close the alert after 3 seconds
-        setTimeout(() => {
+        if (success) {
           setAlertInfo({
-            ...alertInfo,
-            open: false
+            open: true,
+            message: '已删除家庭成员',
+            severity: 'success'
           });
-        }, 3000);
+          
+          // 自动关闭提示
+          setTimeout(() => {
+            setAlertInfo(prev => ({
+              ...prev,
+              open: false
+            }));
+          }, 3000);
+        } else {
+          setAlertInfo({
+            open: true,
+            message: '删除失败，请重试',
+            severity: 'error'
+          });
+        }
       } catch (error) {
         setAlertInfo({
           open: true,
