@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { observer } from 'mobx-react-lite';
 import {
   Box,
@@ -138,9 +138,31 @@ const HealthPage = observer(() => {
     startDate: new Date(new Date().setDate(new Date().getDate() - 7)).toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
   });
+  const dataFetchedRef = useRef(false);
   
   useEffect(() => {
-    // When component mounts or time range changes, fetch data
+    // 使用ref防止严格模式下的重复调用
+    if (dataFetchedRef.current) return;
+    
+    // 当组件挂载或时间范围变化时，获取数据
+    healthStore.setTimeRange(timeRange);
+    
+    if (timeRange === 'custom') {
+      healthStore.setCustomDateRange(customDateRange.startDate, customDateRange.endDate);
+    }
+    
+    healthStore.fetchAllHealthData().then(() => {
+      console.log('Fetched nutrition data:', healthStore.nutrientData);
+      console.log('Fetched diet structure:', healthStore.dietStructure);
+      dataFetchedRef.current = true;
+    });
+  }, [timeRange, customDateRange]);
+  
+  // 添加一个单独的useEffect来处理timeRange和customDateRange的变化
+  useEffect(() => {
+    // 跳过首次渲染
+    if (!dataFetchedRef.current) return;
+    
     healthStore.setTimeRange(timeRange);
     
     if (timeRange === 'custom') {

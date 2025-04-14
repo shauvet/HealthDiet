@@ -35,6 +35,10 @@ class HealthStore {
     endDate: null
   };
 
+  // 防止重复请求的锁
+  _mealPlanNutritionFetchLock = false;
+  _allHealthDataFetchLock = false;
+
   constructor() {
     makeAutoObservable(this);
   }
@@ -49,7 +53,14 @@ class HealthStore {
 
   // 获取已点菜单的营养数据
   async fetchMealPlanNutritionData() {
+    // 如果已经有一个请求在进行中，则返回
+    if (this._mealPlanNutritionFetchLock) {
+      console.log('Meal plan nutrition fetch already in progress, skipping...');
+      return null;
+    }
+
     try {
+      this._mealPlanNutritionFetchLock = true;
       this.loading = true;
       this.error = null;
 
@@ -60,6 +71,7 @@ class HealthStore {
         this.nutrientData = data.nutrientData;
         this.dietStructure = data.dietStructure;
         this.loading = false;
+        this._mealPlanNutritionFetchLock = false;
       });
       
       return response.data;
@@ -67,6 +79,7 @@ class HealthStore {
       runInAction(() => {
         this.error = error.message;
         this.loading = false;
+        this._mealPlanNutritionFetchLock = false;
       });
       return null;
     }
@@ -74,7 +87,14 @@ class HealthStore {
 
   // 获取所有健康数据
   async fetchAllHealthData() {
+    // 如果已经有一个请求在进行中，则返回
+    if (this._allHealthDataFetchLock) {
+      console.log('All health data fetch already in progress, skipping...');
+      return;
+    }
+
     try {
+      this._allHealthDataFetchLock = true;
       this.loading = true;
       this.error = null;
 
@@ -110,11 +130,13 @@ class HealthStore {
         this.nutritionAdvice = data.nutritionAdvice;
         this.ingredientDiversity = data.ingredientDiversity;
         this.loading = false;
+        this._allHealthDataFetchLock = false;
       });
     } catch (error) {
       runInAction(() => {
         this.error = error.message;
         this.loading = false;
+        this._allHealthDataFetchLock = false;
       });
     }
   }
