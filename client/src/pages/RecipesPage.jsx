@@ -53,22 +53,15 @@ const RecipesPage = observer(() => {
     mealType: 'all'
   });
   
-  // 使用ref记录是否已经请求过数据，避免重复请求
-  const requestedTabs = useRef({
-    0: false, // recommended
-    1: false, // personal
-    2: false  // favorites
-  });
+  // 使用static标志确保整个应用生命周期内只请求一次
+  const hasInitializedRef = useRef(false);
   
   // 为对话框关闭后的刷新添加标记
   const dialogRefreshNeeded = useRef(false);
   
   useEffect(() => {
-    // 只有当该标签页未请求过数据时才发起请求
-    if (!requestedTabs.current[tabValue]) {
-      // 标记该标签页已请求过数据
-      requestedTabs.current[tabValue] = true;
-      
+    // 确保整个应用生命周期内只请求一次推荐食谱
+    if (!hasInitializedRef.current) {
       if (tabValue === 0) {
         recipeStore.fetchRecommendedRecipes();
       } else if (tabValue === 1) {
@@ -76,6 +69,7 @@ const RecipesPage = observer(() => {
       } else if (tabValue === 2) {
         recipeStore.fetchFavoriteRecipes();
       }
+      hasInitializedRef.current = true;
     }
   }, [tabValue]);
   

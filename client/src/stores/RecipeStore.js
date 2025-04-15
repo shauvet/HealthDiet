@@ -16,6 +16,11 @@ class RecipeStore {
   
   // Fetch recommended recipes from network
   async fetchRecommendedRecipes() {
+    // 如果已经在加载中，不要再次触发
+    if (this.loading) {
+      return;
+    }
+    
     runInAction(() => {
       this.loading = true;
     });
@@ -145,9 +150,11 @@ class RecipeStore {
         await api.post(`/recipes/${id}/favorite`);
       }
       
-      // 更新收藏列表和推荐列表
+      // 仅更新收藏列表，避免重复获取推荐食谱
       await this.fetchFavoriteRecipes();
-      await this.fetchRecommendedRecipes();
+      
+      // 如果不是从RecipesPage调用的toggleFavorite，则不主动刷新推荐列表
+      // 可以让RecipesPage的useEffect在显示时加载最新数据
       
       console.log(`Successfully ${isFavorite ? 'unfavorited' : 'favorited'} recipe: ${id}`);
       return true;
@@ -272,10 +279,11 @@ class RecipeStore {
     try {
       await api.patch(`/recipes/${recipeId}/ingredients`, { ingredients });
       
-      // After updating the ingredients, refresh the recipes
+      // 只更新必要的列表，避免重复请求推荐食谱
       await this.fetchPersonalRecipes();
-      await this.fetchRecommendedRecipes();
-      await this.fetchFavoriteRecipes();
+      
+      // 不主动刷新推荐食谱和收藏食谱列表
+      // 由RecipesPage在显示相应标签时按需加载
       
       runInAction(() => {
         this.error = null;

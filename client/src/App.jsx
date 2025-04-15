@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { BrowserRouter, Route, Routes, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Route, Routes, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { observer } from 'mobx-react-lite';
@@ -42,27 +42,8 @@ const LoadingScreen = () => (
   </Box>
 );
 
-// 路由观察器组件
-const RouteChangeObserver = ({ setIsNavigating }) => {
-  const location = useLocation();
-  
-  useEffect(() => {
-    setIsNavigating(true);
-    
-    // 300ms后重置导航状态
-    const timer = setTimeout(() => {
-      setIsNavigating(false);
-    }, 300);
-    
-    return () => clearTimeout(timer);
-  }, [location.pathname, setIsNavigating]);
-  
-  return null;
-};
-
 const App = observer(() => {
   const [authChecked, setAuthChecked] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false);
 
   // Create a theme that responds to dark mode preference
   const theme = useMemo(() => 
@@ -91,7 +72,7 @@ const App = observer(() => {
           'sans-serif',
         ].join(','),
       },
-    }), [userStore.darkMode]);
+    }), []);
 
   useEffect(() => {
     // Check auth state on app load
@@ -132,12 +113,6 @@ const App = observer(() => {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
-        {/* 添加路由变化观察器 */}
-        <RouteChangeObserver setIsNavigating={setIsNavigating} />
-        
-        {/* 导航时显示全局加载状态 */}
-        {isNavigating && <LoadingScreen />}
-        
         <Routes>
           {/* Public routes */}
           <Route path="/login" element={<LoginPage />} />
