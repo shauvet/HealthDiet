@@ -7,9 +7,8 @@ const healthRoutes = require('./health/health.routes');
 const inventoryRoutes = require('./inventory/inventory.routes');
 const mealPlanRoutes = require('./meal-plans/meal-plan.routes');
 const recipeRoutes = require('./recipes/recipe.routes');
+const userRoutes = require('./users/user.routes');
 const RecipeRepository = require('./recipes/repositories/recipe.repository');
-const FamilyMemberRepository = require('./users/repositories/family-member.repository');
-const UserRepository = require('./users/repositories/user.repository');
 
 // Create Express app
 const app = express();
@@ -111,173 +110,6 @@ apiRouter.post('/auth/register', (req, res) => {
   res.json({ success: true, message: 'User registered successfully' });
 });
 
-// User routes
-apiRouter.get('/users/profile', async (req, res) => {
-  try {
-    const userId = req.userId || '000000000000000000000001';
-    console.log('获取用户资料，用户ID:', userId);
-
-    // 验证UserRepository是否可用
-    if (
-      !UserRepository ||
-      typeof UserRepository.getUserProfile !== 'function'
-    ) {
-      console.error('UserRepository未正确加载');
-      return res.status(500).json({ error: '系统错误：存储库未加载' });
-    }
-
-    const userProfile = await UserRepository.getUserProfile(userId);
-    console.log('用户资料获取成功:', userProfile);
-
-    res.json(userProfile);
-  } catch (error) {
-    console.error('获取用户资料出错:', error);
-    console.error('错误堆栈:', error.stack);
-    res.status(500).json({ error: '获取用户资料失败: ' + error.message });
-  }
-});
-
-apiRouter.patch('/users/profile', async (req, res) => {
-  try {
-    const userId = req.userId || '000000000000000000000001';
-    const userData = req.body;
-    console.log('更新用户资料，用户ID:', userId);
-    console.log('用户资料数据:', userData);
-
-    // 验证UserRepository是否可用
-    if (
-      !UserRepository ||
-      typeof UserRepository.updateUserProfile !== 'function'
-    ) {
-      console.error('UserRepository未正确加载');
-      return res.status(500).json({ error: '系统错误：存储库未加载' });
-    }
-
-    const updatedProfile = await UserRepository.updateUserProfile(
-      userId,
-      userData,
-    );
-    console.log('用户资料更新成功:', updatedProfile);
-
-    res.json(updatedProfile);
-  } catch (error) {
-    console.error('更新用户资料出错:', error);
-    console.error('错误堆栈:', error.stack);
-    res.status(500).json({ error: '更新用户资料失败: ' + error.message });
-  }
-});
-
-// Family member routes
-apiRouter.get('/users/family', async (req, res) => {
-  try {
-    const userId = req.userId || '000000000000000000000001';
-    console.log('获取家庭成员列表，用户ID:', userId);
-
-    // 验证FamilyMemberRepository是否可用
-    if (
-      !FamilyMemberRepository ||
-      typeof FamilyMemberRepository.getFamilyMembers !== 'function'
-    ) {
-      console.error('FamilyMemberRepository未正确加载');
-      return res.status(500).json({ error: '系统错误：存储库未加载' });
-    }
-
-    const familyMembers = await FamilyMemberRepository.getFamilyMembers(userId);
-    console.log('找到家庭成员数量:', familyMembers.length);
-
-    res.json(familyMembers);
-  } catch (error) {
-    console.error('获取家庭成员出错:', error);
-    console.error('错误堆栈:', error.stack);
-    res.status(500).json({ error: '获取家庭成员失败: ' + error.message });
-  }
-});
-
-// Add family member route
-apiRouter.post('/users/family', async (req, res) => {
-  try {
-    const userId = req.userId || '000000000000000000000001';
-    const memberData = req.body;
-    console.log('添加家庭成员，用户ID:', userId);
-    console.log('家庭成员数据:', memberData);
-
-    // 验证必填字段
-    if (!memberData.name || !memberData.relationship) {
-      return res.status(400).json({ error: '姓名和关系为必填项' });
-    }
-
-    // 验证FamilyMemberRepository是否可用
-    if (
-      !FamilyMemberRepository ||
-      typeof FamilyMemberRepository.addFamilyMember !== 'function'
-    ) {
-      console.error('FamilyMemberRepository未正确加载');
-      return res.status(500).json({ error: '系统错误：存储库未加载' });
-    }
-
-    const newMember = await FamilyMemberRepository.addFamilyMember(
-      userId,
-      memberData,
-    );
-    console.log('家庭成员添加成功，ID:', newMember._id);
-
-    res.status(201).json(newMember);
-  } catch (error) {
-    console.error('添加家庭成员出错:', error);
-    console.error('错误堆栈:', error.stack);
-    res.status(500).json({ error: '添加家庭成员失败: ' + error.message });
-  }
-});
-
-// Update family member route
-apiRouter.patch('/users/family/:id', async (req, res) => {
-  try {
-    const userId = req.userId || '000000000000000000000001';
-    const { id } = req.params;
-    const updateData = req.body;
-    console.log(`Updating family member ${id}:`, updateData);
-
-    const updatedMember = await FamilyMemberRepository.updateFamilyMember(
-      userId,
-      id,
-      updateData,
-    );
-
-    if (!updatedMember) {
-      return res.status(404).json({ error: 'Family member not found' });
-    }
-
-    res.json(updatedMember);
-  } catch (error) {
-    console.error('Error updating family member:', error);
-    res
-      .status(500)
-      .json({ error: 'Failed to update family member: ' + error.message });
-  }
-});
-
-// Delete family member route
-apiRouter.delete('/users/family/:id', async (req, res) => {
-  try {
-    const userId = req.userId || '000000000000000000000001';
-    const { id } = req.params;
-    console.log(`Deleting family member ${id}`);
-
-    const result = await FamilyMemberRepository.deleteFamilyMember(userId, id);
-
-    if (!result) {
-      return res.status(404).json({ error: 'Family member not found' });
-    }
-
-    res.json({ success: true, message: `Family member ${id} deleted` });
-  } catch (error) {
-    console.error('Error deleting family member:', error);
-    res
-      .status(500)
-      .json({ error: 'Failed to delete family member: ' + error.message });
-  }
-});
-
 // Shopping list purchase endpoint - This is redirected to the proper implementation
 apiRouter.post('/inventory/purchased', (req, res) => {
   const { ingredientIds } = req.body;
@@ -303,28 +135,12 @@ try {
 
   // 添加食谱路由
   apiRouter.use('/recipes', recipeRoutes);
+
+  // 添加用户路由
+  apiRouter.use('/users', userRoutes);
 } catch (error) {
   console.error('加载RecipeRepository时出错:', error);
 }
-
-// Add a route to delete a test user
-apiRouter.delete('/users/profile/test', async (req, res) => {
-  try {
-    const userId = req.userId || '000000000000000000000001';
-    console.log('删除测试用户，用户ID:', userId);
-
-    // 删除用户
-    const result = await mongoose.connection
-      .collection('users')
-      .deleteOne({ _id: new mongoose.Types.ObjectId(userId) });
-    console.log('删除结果:', result);
-
-    res.json({ success: true, message: '测试用户已删除' });
-  } catch (error) {
-    console.error('删除测试用户出错:', error);
-    res.status(500).json({ error: '删除测试用户失败: ' + error.message });
-  }
-});
 
 // Start server
 async function bootstrap() {
