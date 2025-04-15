@@ -7,6 +7,7 @@ router.get('/', RecipeController.getRecipes);
 router.get('/search', RecipeController.searchRecipes);
 router.get('/recommended', RecipeController.getRecommendedRecipes);
 router.get('/user', RecipeController.getUserRecipes);
+router.get('/personal', RecipeController.getUserRecipes);
 router.get('/favorites', RecipeController.getUserFavorites);
 router.get('/by-ingredients', RecipeController.getRecipesByIngredients);
 router.get('/by-meal-type/:mealType', RecipeController.getRecipesByMealType);

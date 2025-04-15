@@ -278,24 +278,6 @@ apiRouter.delete('/users/family/:id', async (req, res) => {
   }
 });
 
-// 添加个人菜谱接口 - 从数据库获取数据
-apiRouter.get('/recipes/personal', async (req, res) => {
-  try {
-    const userId = req.userId || '000000000000000000000001';
-
-    // 导入并使用RecipeService
-    const RecipeService = require('./recipes/recipe.service');
-
-    // 从数据库获取用户的个人菜谱
-    const userRecipes = await RecipeService.getUserRecipes(userId);
-
-    res.json(userRecipes);
-  } catch (error) {
-    console.error('Error getting personal recipes:', error);
-    res.status(500).json({ error: 'Failed to get personal recipes' });
-  }
-});
-
 // Shopping list purchase endpoint - This is redirected to the proper implementation
 apiRouter.post('/inventory/purchased', (req, res) => {
   const { ingredientIds } = req.body;
