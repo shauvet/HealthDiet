@@ -1,5 +1,6 @@
 import { makeAutoObservable, runInAction } from 'mobx';
 import api from '../api/axiosConfig';
+import inventoryStore from './InventoryStore';
 
 class MealPlanStore {
   mealPlans = [];
@@ -303,60 +304,52 @@ class MealPlanStore {
       this.loading = true;
     });
     try {
-      // 先获取食谱的库存状态，确保我们有真实的库存不足食材数据
-      const ingredientStatus = await this.checkIngredientAvailability(mealId);
+      // 查找对应的膳食计划
+      const meal = this.mealPlans.find(m => 
+        (m.id === mealId || m._id === mealId)
+      );
       
-      // 确保有库存不足的食材数据（包括完全缺货和库存不足两种情况）
-      const hasOutOfStock = ingredientStatus?.outOfStock?.length > 0;
-      const hasLowStock = ingredientStatus?.lowStock?.length > 0;
-      
-      if (!ingredientStatus || (!hasOutOfStock && !hasLowStock)) {
-        console.warn('No out of stock or low stock ingredients found for meal:', mealId);
-        return { success: false, message: '没有找到库存不足的食材' };
+      if (!meal) {
+        console.warn('Meal plan not found:', mealId);
+        return { success: false, message: '未找到膳食计划' };
       }
       
-      // 收集所有需要添加到购物清单的食材
-      const ingredientsToAdd = [];
-      
-      // 添加完全缺货的食材
-      if (hasOutOfStock) {
-        console.log('Adding out of stock ingredients to shopping list:', ingredientStatus.outOfStock);
-        // 确保字段名称正确
-        const formattedOutOfStock = ingredientStatus.outOfStock.map(item => ({
-          name: item.name,
-          requiredQuantity: item.quantity,
-          toBuyQuantity: item.quantity,
-          unit: item.unit,
-          category: item.category || 'others'
-        }));
-        ingredientsToAdd.push(...formattedOutOfStock);
+      // 获取食材列表
+      let ingredients = [];
+      if (meal.ingredients && Array.isArray(meal.ingredients)) {
+        ingredients = meal.ingredients;
+      } else if (meal.recipe && meal.recipe.ingredients && Array.isArray(meal.recipe.ingredients)) {
+        ingredients = meal.recipe.ingredients;
+      } else if (meal.recipeId && typeof meal.recipeId === 'object' && 
+                 meal.recipeId.ingredients && Array.isArray(meal.recipeId.ingredients)) {
+        ingredients = meal.recipeId.ingredients;
       }
       
-      // 添加库存不足的食材，计算需要购买的数量
-      if (hasLowStock) {
-        console.log('Adding low stock ingredients to shopping list:', ingredientStatus.lowStock);
-        
-        // 对于库存不足的食材，只添加缺少的部分数量
-        const lowStockToAdd = ingredientStatus.lowStock.map(item => {
-          const missingQuantity = item.quantity - (item.availableQuantity || 0);
-          return {
-            name: item.name,
-            requiredQuantity: missingQuantity,
-            toBuyQuantity: missingQuantity,
-            unit: item.unit,
-            category: item.category || 'others'
-          };
-        });
-        
-        // 确保数量大于0
-        const validLowStock = lowStockToAdd.filter(item => item.requiredQuantity > 0);
-        ingredientsToAdd.push(...validLowStock);
+      if (!ingredients || ingredients.length === 0) {
+        console.warn('No ingredients found for meal:', mealId);
+        return { success: false, message: '膳食计划中没有食材信息' };
       }
       
-      if (ingredientsToAdd.length === 0) {
-        console.warn('No ingredients to add after processing');
-        return { success: false, message: '没有需要添加到购物清单的食材' };
+      // 过滤出购物清单中已有的食材
+      const ingredientsInShoppingList = ingredients.filter(ingredient => 
+        inventoryStore.shoppingList.some(item => 
+          item.name.toLowerCase() === ingredient.name.toLowerCase()
+        )
+      );
+      
+      if (ingredientsInShoppingList.length === 0) {
+        console.warn('No ingredients in shopping list for meal:', mealId);
+        return { success: false, message: '购物清单中没有相关食材' };
       }
+      
+      // 准备添加到购物清单的食材数据
+      const ingredientsToAdd = ingredientsInShoppingList.map(item => ({
+        name: item.name,
+        requiredQuantity: item.quantity,
+        toBuyQuantity: item.quantity,
+        unit: item.unit,
+        category: item.category || 'others'
+      }));
       
       // 调用API将食材添加到购物清单
       const response = await api.post(`/meal-plans/${mealId}/shopping-list/add`, {

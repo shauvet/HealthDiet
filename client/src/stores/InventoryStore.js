@@ -7,6 +7,8 @@ class InventoryStore {
   loading = false;
   error = null;
   categories = ['vegetables', 'meat', 'condiments', 'dairy', 'grains', 'fruits', 'others'];
+  fetchingShoppingList = false;
+  lastShoppingListPromise = null;
   
   constructor() {
     makeAutoObservable(this);
@@ -138,48 +140,71 @@ class InventoryStore {
   
   // Fetch shopping list based on meal plan
   async fetchShoppingList() {
+    // 检查是否有正在进行的请求
+    if (this.fetchingShoppingList) {
+      console.log('fetchShoppingList: Another request is already in progress, skipping...');
+      return this.lastShoppingListPromise;
+    }
+    
     this.loading = true;
+    // 添加堆栈跟踪以识别调用来源
+    console.log('----------- fetchShoppingList called -----------');
+    console.log('Call stack:', new Error().stack);
     console.log('Fetching shopping list...');
-    try {
-      const response = await api.get('/inventory/shopping-list');
-      console.log('Shopping list API response:', response.data);
-      
-      // Normalize IDs to ensure both id and _id exist on all objects
-      let normalizedData = [];
-      if (Array.isArray(response.data)) {
-        normalizedData = response.data.map(item => {
-          // If neither id nor _id exists, this is a problem
-          if (!item.id && !item._id) {
-            console.error('Shopping item missing both id and _id:', item);
-            return item;
-          }
-          
-          // Ensure both id and _id exist
-          return {
-            ...item,
-            id: item.id || item._id,
-            _id: item._id || item.id
-          };
+    
+    // 标记开始获取
+    this.fetchingShoppingList = true;
+    
+    // 创建请求并保存Promise引用
+    this.lastShoppingListPromise = (async () => {
+      try {
+        const response = await api.get('/inventory/shopping-list');
+        console.log('Shopping list API response:', response.data);
+        
+        // Normalize IDs to ensure both id and _id exist on all objects
+        let normalizedData = [];
+        if (Array.isArray(response.data)) {
+          normalizedData = response.data.map(item => {
+            // If neither id nor _id exists, this is a problem
+            if (!item.id && !item._id) {
+              console.error('Shopping item missing both id and _id:', item);
+              return item;
+            }
+            
+            // Ensure both id and _id exist
+            return {
+              ...item,
+              id: item.id || item._id,
+              _id: item._id || item.id
+            };
+          });
+        }
+        
+        console.log('Normalized shopping list data:', normalizedData);
+        
+        runInAction(() => {
+          this.shoppingList = normalizedData;
+          this.error = null;
+          console.log('Updated shopping list in store, count:', this.shoppingList.length);
+        });
+        
+        return normalizedData;
+      } catch (error) {
+        console.error('Error fetching shopping list:', error);
+        runInAction(() => {
+          this.error = error.message;
+        });
+        throw error;
+      } finally {
+        runInAction(() => {
+          this.loading = false;
+          // 标记请求完成
+          this.fetchingShoppingList = false;
         });
       }
-      
-      console.log('Normalized shopping list data:', normalizedData);
-      
-      runInAction(() => {
-        this.shoppingList = normalizedData;
-        this.error = null;
-        console.log('Updated shopping list in store, count:', this.shoppingList.length);
-      });
-    } catch (error) {
-      console.error('Error fetching shopping list:', error);
-      runInAction(() => {
-        this.error = error.message;
-      });
-    } finally {
-      runInAction(() => {
-        this.loading = false;
-      });
-    }
+    })();
+    
+    return this.lastShoppingListPromise;
   }
   
   // Mark ingredients as purchased
