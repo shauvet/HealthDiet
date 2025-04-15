@@ -176,7 +176,34 @@ class RecipeRepository {
 
   // 获取用户的个人食谱
   async getUserRecipes(userId) {
-    return await Recipe.find({ createdBy: userId }).sort({ createdAt: -1 });
+    // 先获取用户创建的所有食谱
+    const recipes = await Recipe.find({ createdBy: userId }).sort({
+      createdAt: -1,
+    });
+
+    // 查找用户的所有收藏，用于检查食谱是否已收藏
+    const favorites = await FavoriteRecipe.find({ userId }).lean();
+    const favoriteIds = favorites.map((fav) => fav.recipeId.toString());
+
+    // 标记每个食谱的收藏状态
+    return recipes.map((recipe) => {
+      const recipeObj = recipe.toObject();
+      const isRecipeFavorited = favoriteIds.includes(recipe._id.toString());
+      // 添加isFavorite属性
+      recipeObj.isFavorite = isRecipeFavorited;
+
+      // 如果已收藏，添加favoriteId
+      if (isRecipeFavorited) {
+        const favorite = favorites.find(
+          (fav) => fav.recipeId.toString() === recipe._id.toString(),
+        );
+        if (favorite) {
+          recipeObj.favoriteId = favorite._id;
+        }
+      }
+
+      return recipeObj;
+    });
   }
 
   // 收藏食谱
