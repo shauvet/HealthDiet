@@ -780,7 +780,8 @@ const MealPlanPage = observer(() => {
                   width: '100%',
                   minHeight: 350,
                   display: 'flex',
-                  flexDirection: 'column'
+                  flexDirection: 'column',
+                  backgroundColor: isPastDate(date) ? 'rgba(0, 0, 0, 0.05)' : 'background.paper'
                 }}
               >
                 <CardHeader
@@ -891,9 +892,9 @@ const MealPlanPage = observer(() => {
                                     <Typography 
                                       variant="body2"
                                       sx={{ 
-                                        fontSize: '0.875rem', 
-                                        fontWeight: hasIngredientsInShoppingList(meal) ? 'bold' : 'normal',
-                                        color: hasIngredientsInShoppingList(meal) ? 'error.main' : 'inherit'
+                                        fontSize: '0.875rem',
+                                        fontWeight: (!isPastDate(date) && hasIngredientsInShoppingList(meal)) ? 'bold' : 'normal',
+                                        color: (!isPastDate(date) && hasIngredientsInShoppingList(meal)) ? 'error.main' : 'inherit'
                                       }}
                                     >
                                       {meal.name || (meal.recipe && meal.recipe.name) || '未知菜品'}
@@ -910,7 +911,7 @@ const MealPlanPage = observer(() => {
                                   }
                                 />
                                 <ListItemSecondaryAction sx={{ display: 'flex', alignItems: 'center' }}>
-                                  {hasIngredientsInShoppingList(meal) ? (
+                                  {(!isPastDate(date) && hasIngredientsInShoppingList(meal)) ? (
                                     <Tooltip title="添加缺少的食材到采购清单">
                                       <IconButton
                                         onClick={(e) => {
