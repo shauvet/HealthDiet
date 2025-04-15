@@ -8,7 +8,6 @@ const inventoryRoutes = require('./inventory/inventory.routes');
 const mealPlanRoutes = require('./meal-plans/meal-plan.routes');
 const recipeRoutes = require('./recipes/recipe.routes');
 const userRoutes = require('./users/user.routes');
-const RecipeRepository = require('./recipes/repositories/recipe.repository');
 
 // Create Express app
 const app = express();
@@ -110,37 +109,20 @@ apiRouter.post('/auth/register', (req, res) => {
   res.json({ success: true, message: 'User registered successfully' });
 });
 
-// Shopping list purchase endpoint - This is redirected to the proper implementation
-apiRouter.post('/inventory/purchased', (req, res) => {
-  const { ingredientIds } = req.body;
-  console.log(`Marking ingredients as purchased: ${ingredientIds}`);
+// 添加健康分析路由
+apiRouter.use('/health', healthRoutes);
 
-  // Forward to the actual database implementation
-  req.url = '/inventory/shopping-list/purchase-multiple';
-  req.app.handle(req, res);
-});
+// 添加库存路由
+apiRouter.use('/inventory', inventoryRoutes);
 
-// 添加日志验证导入是否正确
-try {
-  console.log('RecipeRepository loaded successfully', typeof RecipeRepository);
+// 添加膳食计划路由
+apiRouter.use('/meal-plans', mealPlanRoutes);
 
-  // 添加健康分析路由
-  apiRouter.use('/health', healthRoutes);
+// 添加食谱路由
+apiRouter.use('/recipes', recipeRoutes);
 
-  // 添加库存路由
-  apiRouter.use('/inventory', inventoryRoutes);
-
-  // 添加膳食计划路由
-  apiRouter.use('/meal-plans', mealPlanRoutes);
-
-  // 添加食谱路由
-  apiRouter.use('/recipes', recipeRoutes);
-
-  // 添加用户路由
-  apiRouter.use('/users', userRoutes);
-} catch (error) {
-  console.error('加载RecipeRepository时出错:', error);
-}
+// 添加用户路由
+apiRouter.use('/users', userRoutes);
 
 // Start server
 async function bootstrap() {
