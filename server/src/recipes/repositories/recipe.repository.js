@@ -1,10 +1,14 @@
 const mongoose = require('mongoose');
 const { RecipeSchema } = require('../schemas/recipe.schema');
 const { FavoriteRecipeSchema } = require('../schemas/favorite-recipe.schema');
+const cache = require('../../utils/cache');
 
 // 创建模型
 const Recipe = mongoose.model('Recipe', RecipeSchema);
 const FavoriteRecipe = mongoose.model('FavoriteRecipe', FavoriteRecipeSchema);
+
+// 缓存过期时间（毫秒）- 24小时
+const CACHE_TTL = 24 * 60 * 60 * 1000;
 
 class RecipeRepository {
   // 获取所有食谱，支持分页和筛选
@@ -121,7 +125,18 @@ class RecipeRepository {
   // 获取推荐食谱
   async getRecommendedRecipes(userId, limit = 6) {
     try {
-      // 获取推荐食谱
+      // 生成缓存键（结合用户ID和限制数量）
+      const cacheKey = `recommended_recipes_${userId}_${limit}`;
+
+      // 检查缓存中是否已存在结果
+      if (cache.has(cacheKey)) {
+        console.log(`[缓存命中] 返回用户 ${userId} 的缓存推荐食谱`);
+        return cache.get(cacheKey);
+      }
+
+      console.log(`[缓存未命中] 为用户 ${userId} 生成新的推荐食谱`);
+
+      // 获取推荐食谱（随机抽样）
       const recipes = await Recipe.aggregate([{ $sample: { size: limit } }]);
 
       // 查找用户的所有收藏，用于检查食谱是否已收藏
@@ -147,6 +162,9 @@ class RecipeRepository {
 
         return recipeObj;
       });
+
+      // 将结果存入缓存
+      cache.set(cacheKey, recipesWithFavoriteStatus, CACHE_TTL);
 
       return recipesWithFavoriteStatus;
     } catch (error) {
@@ -245,7 +263,13 @@ class RecipeRepository {
 
       // 创建并保存收藏记录
       const favorite = new FavoriteRecipe(favoriteData);
-      return await favorite.save();
+      const result = await favorite.save();
+
+      // 更新被收藏后，应该使该用户的推荐食谱缓存失效
+      // 因为推荐食谱中的收藏状态已经改变
+      this.invalidateRecommendedCache(userId);
+
+      return result;
     } catch (error) {
       console.error('Error in favoriteRecipe:', error);
       throw error;
@@ -258,10 +282,15 @@ class RecipeRepository {
       console.log(`尝试取消收藏食谱 ${recipeId}`);
 
       // 直接查找并删除收藏记录
-      return await FavoriteRecipe.findOneAndDelete({
+      const result = await FavoriteRecipe.findOneAndDelete({
         userId,
         recipeId,
       });
+
+      // 取消收藏后，使该用户的推荐食谱缓存失效
+      this.invalidateRecommendedCache(userId);
+
+      return result;
     } catch (error) {
       console.error('Error in unfavoriteRecipe:', error);
       throw error;
@@ -406,6 +435,10 @@ class RecipeRepository {
 
         updatedRecipe = await newRecipe.save();
         console.log(`新建食谱成功: ${updatedRecipe._id}`);
+
+        // 新创建的食谱，使所有用户的推荐食谱缓存失效
+        // 这里简单粗暴地清除所有缓存，因为是新食谱
+        this.invalidateAllRecommendedCache();
       }
       // If recipe exists, update it
       else if (existingRecipe) {
@@ -421,6 +454,11 @@ class RecipeRepository {
         }
 
         console.log(`更新食谱成功: ${updatedRecipe._id}`);
+
+        // 使该食谱创建者的推荐食谱缓存失效
+        if (updatedRecipe.createdBy) {
+          this.invalidateRecommendedCache(updatedRecipe.createdBy);
+        }
       }
 
       // Only check inventory if we have a valid recipe update
@@ -459,6 +497,17 @@ class RecipeRepository {
         });
       }
       throw error;
+    }
+  }
+
+  // 使所有推荐食谱缓存失效的辅助方法
+  invalidateAllRecommendedCache() {
+    // 删除所有推荐食谱缓存
+    for (const key in cache.cache) {
+      if (key.startsWith('recommended_recipes_')) {
+        console.log(`[缓存更新] 清除所有用户的推荐食谱缓存: ${key}`);
+        cache.delete(key);
+      }
     }
   }
 
@@ -570,6 +619,18 @@ class RecipeRepository {
         { 'ingredients.name': { $in: recipe.ingredients.map((i) => i.name) } },
       ],
     }).limit(limit);
+  }
+
+  // 使推荐食谱缓存失效的辅助方法
+  invalidateRecommendedCache(userId) {
+    // 删除所有与该用户相关的推荐食谱缓存（不同limit值可能有多个缓存）
+    const cacheKeyPrefix = `recommended_recipes_${userId}_`;
+    for (const key in cache.cache) {
+      if (key.startsWith(cacheKeyPrefix)) {
+        console.log(`[缓存更新] 清除用户 ${userId} 的推荐食谱缓存: ${key}`);
+        cache.delete(key);
+      }
+    }
   }
 }
 

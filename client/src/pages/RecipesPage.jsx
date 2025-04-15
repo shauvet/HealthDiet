@@ -49,7 +49,7 @@ const RecipesPage = observer(() => {
   const [isSearching, setIsSearching] = useState(false);
   const [filters, setFilters] = useState({
     cuisines: [],
-    spiceLevel: [0, 3],
+    spiceLevel: [0, 4],
     mealType: 'all'
   });
   
@@ -170,7 +170,6 @@ const RecipesPage = observer(() => {
           
           return (matches[filters.mealType] || []).some(term => valueStr.includes(term));
         });
-        
         if (!hasCorrectMealType) return false;
       }
 
@@ -201,7 +200,6 @@ const RecipesPage = observer(() => {
             category => category === cuisineName || category.includes(cuisineName)
           );
         });
-        
         if (!cuisineMatches) return false;
       }
 
