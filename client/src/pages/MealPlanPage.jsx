@@ -59,26 +59,9 @@ const initialIngredient = {
   isMain: true
 };
 
-// 创建一个标记对象，用于跟踪全局的API调用状态
-// 确保即使组件重新挂载，这个对象也会保持不变
-if (!window.__MealPlanAPIStatus) {
-  window.__MealPlanAPIStatus = {
-    // 使用时间戳来确定数据是否需要刷新
-    shoppingListFetchTime: 0,
-    // 缓存期，默认10分钟
-    cacheDuration: 10 * 60 * 1000,
-    // 当前是否有正在进行的调用
-    fetchingShoppingList: false,
-    // 跟踪API调用次数
-    shoppingListApiCallCount: 0
-  };
-}
-
 const MealPlanPage = observer(() => {
   // 添加debugId用于标识组件实例
   const debugId = useRef(`mealplan-${Math.random().toString(36).substr(2, 9)}`);
-  // 获取全局API状态对象
-  const apiStatus = useRef(window.__MealPlanAPIStatus);
   const navigate = useNavigate();
   const [selectedMeals, setSelectedMeals] = useState([]);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
@@ -88,14 +71,6 @@ const MealPlanPage = observer(() => {
   const [mealIngredientStatus, setMealIngredientStatus] = useState({});
   const todayCardRef = useRef(null);
   const [ingredientsChecked, setIngredientsChecked] = useState(false);
-  const shoppingListLoadedRef = useRef(false);
-  
-  // 添加一个静态变量，在所有组件实例间共享
-  // 这可以防止严格模式下的重复调用
-  const staticShoppingListRef = useRef(window.__SHARED_SHOPPING_LIST_STATUS || {});
-  
-  // 保存到window对象以便所有实例共享
-  window.__SHARED_SHOPPING_LIST_STATUS = staticShoppingListRef.current;
   
   // Recipe ingredients dialog state
   const [openIngredientsDialog, setOpenIngredientsDialog] = useState(false);
@@ -173,105 +148,30 @@ const MealPlanPage = observer(() => {
     console.log(`[${debugId.current}] Updated ingredient status based on shopping list:`, newIngredientStatus);
     setMealIngredientStatus(newIngredientStatus);
     setIngredientsChecked(true);
-  }, [mealPlanStore.mealPlans, debugId]);
+  }, [debugId]);
 
   // 创建一个函数，用于智能获取购物清单数据
-  const getShoppingList = useCallback(async (force = false) => {
-    const now = Date.now();
-    const lastFetchTime = apiStatus.current.shoppingListFetchTime;
-    const cacheDuration = apiStatus.current.cacheDuration;
-    
-    // 检查API调用次数是否已达到最大限制（2次）
-    if (apiStatus.current.shoppingListApiCallCount >= 2) {
-      console.log(`[${debugId.current}] Shopping list API call limit reached (${apiStatus.current.shoppingListApiCallCount}/2), using cached data.`);
-      // 仍然设置为已加载，以便UI能正确显示
-      shoppingListLoadedRef.current = true;
-      staticShoppingListRef.current.loaded = true;
-      return true;
-    }
-    
-    // 判断是否需要重新获取数据
-    // 1. 强制刷新 或
-    // 2. 数据从未获取过 或
-    // 3. 缓存过期
-    const shouldFetch = force || 
-                         lastFetchTime === 0 || 
-                         (now - lastFetchTime) > cacheDuration;
-    
-    if (shouldFetch && !apiStatus.current.fetchingShoppingList) {
-      try {
-        console.log(`[${debugId.current}] Getting shopping list data (forced: ${force})`);
-        
-        // 标记为正在获取中，防止并发请求
-        apiStatus.current.fetchingShoppingList = true;
-        
-        await inventoryStore.fetchShoppingList();
-        
-        // 增加API调用计数
-        apiStatus.current.shoppingListApiCallCount++;
-        console.log(`[${debugId.current}] Shopping list API call count: ${apiStatus.current.shoppingListApiCallCount}/2`);
-        
-        // 更新获取时间
-        apiStatus.current.shoppingListFetchTime = Date.now();
-        
-        // 更新组件状态
-        shoppingListLoadedRef.current = true;
-        staticShoppingListRef.current.loaded = true;
-        window.__SHARED_SHOPPING_LIST_STATUS = staticShoppingListRef.current;
-        
-        return true;
-      } catch (error) {
-        console.error(`[${debugId.current}] Error fetching shopping list:`, error);
-        return false;
-      } finally {
-        // 重置获取状态
-        apiStatus.current.fetchingShoppingList = false;
-      }
-    } else {
-      // 数据已经是最新的，直接标记为已加载
-      shoppingListLoadedRef.current = true;
-      staticShoppingListRef.current.loaded = true;
-      
-      if (apiStatus.current.fetchingShoppingList) {
-        console.log(`[${debugId.current}] Shopping list fetch already in progress, skipping`);
-      } else {
-        console.log(`[${debugId.current}] Using cached shopping list data from ${new Date(lastFetchTime).toLocaleTimeString()}`);
-      }
-      
-      return true;
-    }
-  }, [debugId]);
+  const getShoppingList = useCallback(async () => {
+    await inventoryStore.fetchShoppingList();
+  }, []);
   
   const fetchMeals = useCallback(async () => {
-    console.log(`[${debugId.current}] fetchMeals called`);
     setLoading(true);
     setError('');
     setIngredientsChecked(false);
-    shoppingListLoadedRef.current = false;
     try {
-      console.log(`[${debugId.current}] Fetching meal plans from`, formatDateForAPI(dateRange.startDate), 'to', formatDateForAPI(dateRange.endDate));
       await mealPlanStore.fetchMealPlans(
         formatDateForAPI(dateRange.startDate),
         formatDateForAPI(dateRange.endDate)
       );
-      
-      // Add debug logging to check the data format
-      console.log(`[${debugId.current}] Fetched meal plans:`, mealPlanStore.mealPlans);
-      if (mealPlanStore.mealPlans.length > 0) {
-        console.log(`[${debugId.current}] Sample meal plan date format:`, 
-          mealPlanStore.mealPlans[0].date, 
-          'typeof:', typeof mealPlanStore.mealPlans[0].date);
-      }
     } catch {
       setError('加载菜单失败，请稍后重试');
     } finally {
       setLoading(false);
     }
-  }, [dateRange.startDate, dateRange.endDate, debugId]);
+  }, [dateRange.startDate, dateRange.endDate]);
   
   useEffect(() => {
-    console.log(`[${debugId.current}] Component mounted`);
-    
     // 先加载购物清单数据，然后加载膳食计划数据
     const loadData = async () => {
       try {
@@ -281,19 +181,15 @@ const MealPlanPage = observer(() => {
         // 再加载膳食计划
         await fetchMeals();
       } catch (error) {
-        console.error(`[${debugId.current}] Error loading initial data:`, error);
+        console.error(`Error loading initial data:`, error);
         // 即使获取购物清单失败，也尝试加载膳食计划
         fetchMeals();
       }
     };
     
     loadData();
-    
-    return () => {
-      console.log(`[${debugId.current}] Component will unmount`);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    // 添加所有必要的依赖
+  }, [getShoppingList, fetchMeals]);
   
   // 简化数据加载和处理逻辑，仅在必要时触发API调用
   useEffect(() => {
@@ -303,20 +199,13 @@ const MealPlanPage = observer(() => {
       
       // 使用异步IIFE避免在useEffect中直接使用async
       (async () => {
-        // 只有当购物清单尚未加载，且未超过API调用限制时，才获取购物清单
-        if (!shoppingListLoadedRef.current && apiStatus.current.shoppingListApiCallCount < 2) {
-          await getShoppingList();
-        } else {
-          console.log(`[${debugId.current}] Shopping list already loaded or API call limit reached, skipping fetch`);
-        }
-        
         // 只有在尚未检查食材且购物清单已加载的情况下才处理
-        if (!ingredientsChecked && shoppingListLoadedRef.current) {
+        if (!ingredientsChecked) {
           updateMealIngredientsFromShoppingList();
         }
       })();
     }
-  }, [mealPlanStore.mealPlans, loading, ingredientsChecked, getShoppingList, updateMealIngredientsFromShoppingList, shoppingListLoadedRef]);
+  }, [loading, ingredientsChecked, updateMealIngredientsFromShoppingList]);
   
   // Auto-scroll to today's menu when data is loaded
   useEffect(() => {
@@ -450,27 +339,8 @@ const MealPlanPage = observer(() => {
     }
   };
   
-  const handleAddToShoppingList = async (mealId) => {
-    setLoading(true);
-    try {
-      const result = await mealPlanStore.addOutOfStockToShoppingList(mealId);
-      
-      if (result.success) {
-        await inventoryStore.fetchShoppingList();
-        setSuccess('已成功添加缺少的食材到采购清单');
-        
-        setTimeout(() => {
-          navigate('/inventory?tab=shopping');
-        }, 1000);
-      } else {
-        setError(result.message || '添加到采购清单失败，请稍后重试');
-      }
-    } catch (error) {
-      setError('添加到采购清单失败，请稍后重试');
-      console.error('Failed to add to shopping list:', error);
-    } finally {
-      setLoading(false);
-    }
+  const ToShoppingList = async () => {
+    navigate('/inventory?tab=shopping');
   };
   
   const getMealsForDateAndType = (date, mealType) => {
@@ -642,25 +512,12 @@ const MealPlanPage = observer(() => {
     
     setLoading(true);
     try {
-      console.log(`[${debugId.current}] Force updating shopping list status`);
-      
-      // 检查是否达到API调用限制
-      if (apiStatus.current.shoppingListApiCallCount >= 2) {
-        console.log(`[${debugId.current}] Shopping list API call limit reached (${apiStatus.current.shoppingListApiCallCount}/2), using cached data`);
-        // 只重置食材检查状态，以便重新处理现有购物清单数据
-        setIngredientsChecked(false);
-        setSuccess('已更新所有食材状态（使用缓存数据）');
-      } else {
         // 强制刷新购物清单
         await getShoppingList(true);
         
         // 重置食材检查状态，以便触发重新检查
         setIngredientsChecked(false);
-        
         setSuccess('已更新所有食材状态');
-      }
-      
-      setTimeout(() => setSuccess(''), 3000);
     } catch (error) {
       setError('更新食材状态失败: ' + error.message);
       setTimeout(() => setError(''), 5000);
@@ -916,7 +773,7 @@ const MealPlanPage = observer(() => {
                                       <IconButton
                                         onClick={(e) => {
                                           e.stopPropagation();
-                                          handleAddToShoppingList(meal._id || meal.id);
+                                          ToShoppingList();
                                         }}
                                         color="primary"
                                         size="small"

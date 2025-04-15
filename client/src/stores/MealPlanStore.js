@@ -6,7 +6,6 @@ class MealPlanStore {
   mealPlans = [];
   loading = false;
   error = null;
-  _lastFetchKey = null;
   
   constructor() {
     makeAutoObservable(this);
@@ -14,14 +13,6 @@ class MealPlanStore {
   
   // Fetch meal plans for a date range
   async fetchMealPlans(startDate, endDate) {
-    // 检查是否已经有这个日期范围的数据
-    const cacheKey = `${startDate}-${endDate}`;
-    if (this._lastFetchKey === cacheKey && this.mealPlans.length > 0) {
-      console.log('Using cached meal plans for', cacheKey);
-      return this.mealPlans;
-    }
-    
-    console.log('Fetching from API for', cacheKey);
     runInAction(() => {
       this.loading = true;
     });
@@ -30,7 +21,6 @@ class MealPlanStore {
       runInAction(() => {
         this.mealPlans = response.data;
         this.error = null;
-        this._lastFetchKey = cacheKey; // 存储最后一次成功请求的缓存键
       });
     } catch (error) {
       runInAction(() => {

@@ -15,7 +15,9 @@ import {
   MenuItem,
   TextField,
   Chip,
-  Avatar
+  Avatar,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
@@ -73,6 +75,11 @@ const RecipeCard = observer(({ recipe }) => {
     mealType: 'lunch', // breakfast, lunch, dinner
     servings: 1
   });
+  const [notification, setNotification] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
   
   const handleFavoriteToggle = async () => {
     // 获取ID以用于API调用
@@ -122,6 +129,10 @@ const RecipeCard = observer(({ recipe }) => {
     });
   };
   
+  const handleCloseNotification = () => {
+    setNotification({ ...notification, open: false });
+  };
+  
   const handleAddToMealPlanConfirm = async () => {
     // 获取ID以用于API调用
     const recipeId = getRecipeId();
@@ -129,6 +140,11 @@ const RecipeCard = observer(({ recipe }) => {
     // 检查recipeId是否存在
     if (!recipeId) {
       console.error("Cannot add recipe to meal plan without ID:", recipe);
+      setNotification({
+        open: true,
+        message: '无法添加菜谱: 菜谱ID缺失',
+        severity: 'error'
+      });
       return;
     }
     
@@ -137,6 +153,13 @@ const RecipeCard = observer(({ recipe }) => {
       const addedMeal = await mealPlanStore.addMeal({
         recipeId,
         ...mealPlanData
+      });
+      
+      // 添加成功提示
+      setNotification({
+        open: true,
+        message: `成功将 "${recipe.name}" 添加到菜单`,
+        severity: 'success'
       });
       
       // 检查食材库存并添加缺货食材到购物清单
@@ -177,9 +200,19 @@ const RecipeCard = observer(({ recipe }) => {
                 }).filter(item => item.quantity > 0)
               ]
             });
+            setNotification({
+              open: true,
+              message: '已成功添加缺少的食材到采购清单',
+              severity: 'success'
+            });
           }
         } catch (error) {
           console.error("Failed to check ingredients or add to shopping list:", error);
+          setNotification({
+            open: true,
+            message: '添加缺少的食材到采购清单失败',
+            severity: 'error'
+          });
         }
       }
       
@@ -187,6 +220,11 @@ const RecipeCard = observer(({ recipe }) => {
       setOpenAddDialog(false);
     } catch (error) {
       console.error("Failed to add to meal plan:", error);
+      setNotification({
+        open: true,
+        message: `添加 "${recipe.name}" 到菜单失败`,
+        severity: 'error'
+      });
     }
   };
   
@@ -324,6 +362,18 @@ const RecipeCard = observer(({ recipe }) => {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Notification Snackbar */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={3000}
+        onClose={handleCloseNotification}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseNotification} severity={notification.severity}>
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 });

@@ -771,7 +771,7 @@ const InventoryPage = observer(() => {
       {/* Notification Snackbar */}
       <Snackbar
         open={notification.open}
-        autoHideDuration={6000}
+        autoHideDuration={3000}
         onClose={handleCloseNotification}
       >
         <Alert onClose={handleCloseNotification} severity={notification.severity}>
