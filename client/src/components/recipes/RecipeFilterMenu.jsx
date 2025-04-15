@@ -29,12 +29,13 @@ const spiceLevels = [
   { value: 0, label: '不辣' },
   { value: 1, label: '微辣' },
   { value: 2, label: '中辣' },
-  { value: 3, label: '重辣' }
+  { value: 3, label: '重辣' },
+  { value: 4, label: '麻辣' }
 ];
 
 const RecipeFilterMenu = ({ onFilterChange }) => {
   const [selectedCuisines, setSelectedCuisines] = useState([]);
-  const [spiceLevel, setSpiceLevel] = useState([0, 3]); // From not spicy to very spicy
+  const [spiceLevel, setSpiceLevel] = useState([0, 4]); // From not spicy to very spicy
   const [mealType, setMealType] = useState('all');
   
   // 当筛选条件改变时，通知父组件
@@ -45,7 +46,7 @@ const RecipeFilterMenu = ({ onFilterChange }) => {
       mealType
     };
     onFilterChange?.(filters);
-  }, [selectedCuisines, spiceLevel, mealType]);
+  }, [selectedCuisines, spiceLevel, mealType, onFilterChange]);
 
   const handleCuisineClick = (cuisineId) => {
     if (selectedCuisines.includes(cuisineId)) {
@@ -98,7 +99,7 @@ const RecipeFilterMenu = ({ onFilterChange }) => {
             step={1}
             marks={spiceLevels}
             min={0}
-            max={3}
+            max={4}
             valueLabelFormat={(value) => spiceLevels.find(level => level.value === value)?.label}
           />
         </Box>

@@ -53,23 +53,27 @@ const RecipesPage = observer(() => {
     mealType: 'all'
   });
   
-  // 使用static标志确保整个应用生命周期内只请求一次
-  const hasInitializedRef = useRef(false);
+  // 使用ref记录每个标签页是否已加载过数据
+  const tabInitialized = useRef({
+    0: false,
+    1: false,
+    2: false
+  });
   
   // 为对话框关闭后的刷新添加标记
   const dialogRefreshNeeded = useRef(false);
   
   useEffect(() => {
-    // 确保整个应用生命周期内只请求一次推荐食谱
-    if (!hasInitializedRef.current) {
-      if (tabValue === 0) {
-        recipeStore.fetchRecommendedRecipes();
-      } else if (tabValue === 1) {
-        recipeStore.fetchPersonalRecipes();
-      } else if (tabValue === 2) {
-        recipeStore.fetchFavoriteRecipes();
-      }
-      hasInitializedRef.current = true;
+    // 为当前标签页加载数据
+    if (tabValue === 0 && !tabInitialized.current[0]) {
+      recipeStore.fetchRecommendedRecipes();
+      tabInitialized.current[0] = true;
+    } else if (tabValue === 1 && !tabInitialized.current[1]) {
+      recipeStore.fetchPersonalRecipes();
+      tabInitialized.current[1] = true;
+    } else if (tabValue === 2 && !tabInitialized.current[2]) {
+      recipeStore.fetchFavoriteRecipes();
+      tabInitialized.current[2] = true;
     }
   }, [tabValue]);
   
@@ -82,12 +86,21 @@ const RecipesPage = observer(() => {
       // 当对话框关闭且有标记需要刷新且当前是个人菜谱标签时，刷新数据
       dialogRefreshNeeded.current = false;
       recipeStore.fetchPersonalRecipes();
+      tabInitialized.current[1] = true;
     }
   }, [isCreateDialogOpen, tabValue]);
   
   const handleChangeTab = (event, newValue) => {
     setTabValue(newValue);
-    // 数据加载由上面的 useEffect 处理，这里不需要重复调用
+    
+    // 每次切换标签时都重新加载数据
+    if (newValue === 0) {
+      recipeStore.fetchRecommendedRecipes();
+    } else if (newValue === 1) {
+      recipeStore.fetchPersonalRecipes();
+    } else if (newValue === 2) {
+      recipeStore.fetchFavoriteRecipes();
+    }
   };
   
   const handleSearch = async () => {
