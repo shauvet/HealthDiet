@@ -28,7 +28,7 @@ class RecipeStore {
       const response = await api.get(`/recipes/recommended?limit=${limit}`);
       
       // 确保每个食谱都有id字段
-      const processedRecipes = response.data.map(recipe => {
+      const processedRecipes = response.data.data.map(recipe => {
         // 如果没有id字段，使用_id作为id
         if (!recipe.id && recipe._id) {
           recipe.id = recipe._id.toString();
@@ -63,7 +63,7 @@ class RecipeStore {
       const response = await api.get('/recipes/personal');
       
       // 确保每个食谱都有id字段
-      const processedRecipes = response.data.map(recipe => {
+      const processedRecipes = response.data.data.map(recipe => {
         // 如果没有id字段，使用_id作为id
         if (!recipe.id && recipe._id) {
           recipe.id = recipe._id.toString();
