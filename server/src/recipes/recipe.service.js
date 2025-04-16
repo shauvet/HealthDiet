@@ -3,7 +3,13 @@ const RecipeRepository = require('./repositories/recipe.repository');
 const RecipeService = {
   // 获取所有食谱，支持分页和筛选
   async getRecipes(filters = {}, page = 1, limit = 10) {
-    return await RecipeRepository.getRecipes(filters, page, limit);
+    console.log(
+      'RecipeService.getRecipes called with filters:',
+      JSON.stringify(filters),
+    );
+    const result = await RecipeRepository.getRecipes(filters, page, limit);
+    console.log('RecipeService.getRecipes result:', { total: result.total });
+    return result;
   },
 
   // 根据ID获取食谱详情

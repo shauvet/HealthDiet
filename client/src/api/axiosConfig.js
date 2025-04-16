@@ -29,7 +29,7 @@ api.interceptors.request.use(
 // Response interceptor for handling common errors
 api.interceptors.response.use(
   (response) => {
-    return response;
+    return response.data;
   },
   (error) => {
     // Handle token expiration or auth errors

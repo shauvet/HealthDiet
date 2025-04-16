@@ -18,6 +18,7 @@ Prop({ type: Number, required: true })(Recipe.prototype, 'cookingTime');
 Prop({ type: Number, required: true })(Recipe.prototype, 'servings');
 Prop({ type: String, default: '' })(Recipe.prototype, 'cuisine');
 Prop({ type: Number, default: 0 })(Recipe.prototype, 'spiceLevel');
+Prop({ type: Boolean, default: false })(Recipe.prototype, 'isPersonal');
 
 Prop({
   type: [

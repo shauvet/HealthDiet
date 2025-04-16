@@ -60,7 +60,8 @@ const RecipeController = {
       // 从请求中获取用户ID
       const userId =
         req.userId || req.body.userId || '000000000000000000000001';
-      const recipeData = { ...req.body, createdBy: userId };
+      // 添加用户创建的食谱标记为个人食谱
+      const recipeData = { ...req.body, createdBy: userId, isPersonal: true };
 
       const recipe = await RecipeService.createRecipe(recipeData);
       res.status(201).json(recipe);
@@ -140,6 +141,31 @@ const RecipeController = {
     }
   },
 
+  // 获取系统推荐的食谱（基于isPersonal=false属性）
+  async getRecommendedRecipesNew(req, res) {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit) : 30;
+      const page = req.query.page ? parseInt(req.query.page) : 1;
+
+      // 构建筛选条件，获取非个人食谱
+      const filters = { isPersonal: false };
+
+      console.log('获取推荐食谱，筛选条件:', JSON.stringify(filters));
+      console.log('分页参数:', { page, limit });
+
+      const recipes = await RecipeService.getRecipes(filters, page, limit);
+      console.log('找到的推荐食谱数量:', recipes.total);
+      if (recipes.total === 0) {
+        console.log('警告: 未找到推荐食谱!');
+      }
+
+      res.json(recipes);
+    } catch (error) {
+      console.error('Error getting recommended recipes:', error);
+      res.status(500).json({ error: 'Failed to get recommended recipes' });
+    }
+  },
+
   // 获取用户的个人食谱
   async getUserRecipes(req, res) {
     try {
@@ -152,6 +178,29 @@ const RecipeController = {
     } catch (error) {
       console.error('Error getting user recipes:', error);
       res.status(500).json({ error: 'Failed to get user recipes' });
+    }
+  },
+
+  // 获取用户创建的个人食谱（基于isPersonal=true属性）
+  async getPersonalRecipes(req, res) {
+    try {
+      // 从请求中获取用户ID
+      const userId =
+        req.userId || req.query.userId || '000000000000000000000001';
+      const limit = req.query.limit ? parseInt(req.query.limit) : 10;
+      const page = req.query.page ? parseInt(req.query.page) : 1;
+
+      // 构建筛选条件，获取该用户创建的个人食谱
+      const filters = {
+        createdBy: userId,
+        isPersonal: true,
+      };
+
+      const recipes = await RecipeService.getRecipes(filters, page, limit);
+      res.json(recipes);
+    } catch (error) {
+      console.error('Error getting personal recipes:', error);
+      res.status(500).json({ error: 'Failed to get personal recipes' });
     }
   },
 

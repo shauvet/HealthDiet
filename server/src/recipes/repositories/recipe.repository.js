@@ -13,6 +13,10 @@ const CACHE_TTL = 24 * 60 * 60 * 1000;
 class RecipeRepository {
   // 获取所有食谱，支持分页和筛选
   async getRecipes(filters = {}, page = 1, limit = 10) {
+    console.log(
+      'RecipeRepository.getRecipes called with filters:',
+      JSON.stringify(filters),
+    );
     const query = {};
 
     if (filters.name) {
@@ -39,12 +43,36 @@ class RecipeRepository {
       query.createdBy = filters.createdBy;
     }
 
+    // 添加对isPersonal字段的处理
+    if (filters.isPersonal !== undefined) {
+      query.isPersonal = filters.isPersonal;
+    }
+
+    console.log('最终MongoDB查询条件:', JSON.stringify(query));
+
     const skip = (page - 1) * limit;
 
     const [recipes, total] = await Promise.all([
       Recipe.find(query).skip(skip).limit(limit).sort({ createdAt: -1 }),
       Recipe.countDocuments(query),
     ]);
+
+    console.log('查询结果统计:', {
+      totalFound: total,
+      returnedCount: recipes.length,
+      page,
+      limit,
+    });
+
+    if (recipes.length > 0) {
+      console.log('第一条食谱样例:', {
+        id: recipes[0]._id,
+        name: recipes[0].name,
+        isPersonal: recipes[0].isPersonal,
+      });
+    } else {
+      console.log('未找到符合条件的食谱');
+    }
 
     return {
       data: recipes,

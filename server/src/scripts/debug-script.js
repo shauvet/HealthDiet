@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { FamilyMemberSchema } = require('./users/schemas/user.schema');
+const { FamilyMemberSchema } = require('../users/schemas/user.schema');
 
 async function debugFamilyMembers() {
   try {

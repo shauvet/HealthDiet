@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const {
   ShoppingItemSchema,
-} = require('./inventory/schemas/shoppingItem.schema');
+} = require('../inventory/schemas/shoppingItem.schema');
 
 async function main() {
   try {
