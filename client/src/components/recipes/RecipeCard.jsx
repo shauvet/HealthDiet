@@ -61,14 +61,14 @@ const RecipeCard = observer(({ recipe }) => {
   // 检查服务器返回的收藏状态
   const isInitiallyFavorited = () => {
     // 优先使用服务器明确标记的isFavorite属性
-    if (recipe.isFavorite !== undefined) return recipe.isFavorite;
+    if (recipe.isFavorited !== undefined) return recipe.isFavorited;
     // 如果有favoriteId，则认为已收藏
     if (recipe.favoriteId !== undefined) return true;
     // 默认为未收藏
     return false;
   };
   
-  const [isFavorite, setIsFavorite] = useState(isInitiallyFavorited());
+  const [isFavorited, setIsFavorite] = useState(isInitiallyFavorited());
   const [openAddDialog, setOpenAddDialog] = useState(false);
   const [mealPlanData, setMealPlanData] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -95,19 +95,19 @@ const RecipeCard = observer(({ recipe }) => {
     console.log("食谱详情:", {
       id: recipeId,
       name: recipe.name,
-      isFavorite: isFavorite
+      isFavorited: isFavorited
     });
     
     // Update local UI state optimistically
-    setIsFavorite(!isFavorite);
+    setIsFavorite(!isFavorited);
     
     // Call API to update server state
     try {
       console.log("Toggling favorite for recipe:", recipeId);
-      await recipeStore.toggleFavorite(recipeId, isFavorite);
+      await recipeStore.toggleFavorite(recipeId, isFavorited);
     } catch (error) {
       // Revert local state on error
-      setIsFavorite(isFavorite);
+      setIsFavorite(isFavorited);
       console.error("Failed to toggle favorite status:", error);
     }
   };
@@ -272,12 +272,12 @@ const RecipeCard = observer(({ recipe }) => {
           mx: { xs: 0.5, sm: 2 }
         }}>
           <IconButton 
-            aria-label={isFavorite ? '取消收藏' : '收藏菜谱'} 
+            aria-label={isFavorited ? '取消收藏' : '收藏菜谱'} 
             onClick={handleFavoriteToggle}
-            color={isFavorite ? 'primary' : 'default'}
+            color={isFavorited ? 'primary' : 'default'}
             size="medium"
           >
-            {isFavorite ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+            {isFavorited ? <FavoriteIcon /> : <FavoriteBorderIcon />}
           </IconButton>
           
           <Button

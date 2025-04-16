@@ -105,7 +105,7 @@ class RecipeStore {
           }
         }
         // 确保标记为已收藏
-        recipe.isFavorite = true;
+        recipe.isFavorited = true;
         return recipe;
       });
       
@@ -125,7 +125,7 @@ class RecipeStore {
   }
   
   // Toggle favorite status of a recipe
-  async toggleFavorite(recipeId, isFavorite) {
+  async toggleFavorite(recipeId, isFavorited) {
     try {
       // 参数验证
       if (!recipeId) {
@@ -142,10 +142,10 @@ class RecipeStore {
         type: typeof recipeId,
         isNumeric: !isNaN(parseInt(id)),
         isObjectId: /^[0-9a-fA-F]{24}$/.test(id),
-        currentStatus: isFavorite ? 'favorited' : 'not favorited'
+        currentStatus: isFavorited ? 'favorited' : 'not favorited'
       });
       
-      if (isFavorite) {
+      if (isFavorited) {
         // 如果已收藏，则调用取消收藏接口
         await api.delete(`/recipes/${id}/favorite`);
       } else {
@@ -159,7 +159,7 @@ class RecipeStore {
       // 如果不是从RecipesPage调用的toggleFavorite，则不主动刷新推荐列表
       // 可以让RecipesPage的useEffect在显示时加载最新数据
       
-      console.log(`Successfully ${isFavorite ? 'unfavorited' : 'favorited'} recipe: ${id}`);
+      console.log(`Successfully ${isFavorited ? 'unfavorited' : 'favorited'} recipe: ${id}`);
       return true;
     } catch (error) {
       runInAction(() => {

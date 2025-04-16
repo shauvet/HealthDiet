@@ -146,9 +146,15 @@ const RecipeController = {
     try {
       const limit = req.query.limit ? parseInt(req.query.limit) : 30;
       const page = req.query.page ? parseInt(req.query.page) : 1;
+      // 从请求中获取用户ID
+      const userId =
+        req.userId || req.query.userId || '000000000000000000000001';
 
       // 构建筛选条件，获取非个人食谱
-      const filters = { isPersonal: false };
+      const filters = {
+        isPersonal: false,
+        userId: userId, // 添加用户ID以便查询收藏信息
+      };
 
       console.log('获取推荐食谱，筛选条件:', JSON.stringify(filters));
       console.log('分页参数:', { page, limit });
@@ -194,6 +200,7 @@ const RecipeController = {
       const filters = {
         createdBy: userId,
         isPersonal: true,
+        userId: userId, // 添加userId以便查询收藏信息
       };
 
       const recipes = await RecipeService.getRecipes(filters, page, limit);

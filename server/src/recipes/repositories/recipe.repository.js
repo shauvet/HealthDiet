@@ -74,8 +74,36 @@ class RecipeRepository {
       console.log('未找到符合条件的食谱');
     }
 
+    // 尝试获取用户ID（如果在filters中有）
+    const userId = filters.userId || filters.createdBy;
+    let recipesWithFavoriteStatus = recipes;
+
+    // 如果有用户ID，查询该用户的收藏情况并标记
+    if (userId) {
+      try {
+        // 查找用户的所有收藏
+        const favorites = await FavoriteRecipe.find({ userId }).lean();
+        const favoriteIds = favorites.map((fav) => fav.recipeId.toString());
+
+        // 标记每个食谱的收藏状态
+        recipesWithFavoriteStatus = recipes.map((recipe) => {
+          const recipeObj = recipe.toObject ? recipe.toObject() : recipe;
+          const recipeId = recipe._id.toString();
+          const isFavorited = favoriteIds.includes(recipeId);
+
+          // 添加isFavorited属性
+          recipeObj.isFavorited = isFavorited;
+
+          return recipeObj;
+        });
+      } catch (error) {
+        console.error('Error while checking favorite status:', error);
+        // 出错时继续使用原始菜谱列表
+      }
+    }
+
     return {
-      data: recipes,
+      data: recipesWithFavoriteStatus,
       total,
       page,
       limit,
@@ -299,8 +327,8 @@ class RecipeRepository {
         const recipeId = recipe._id.toString();
         const isRecipeFavorited = favoriteIds.includes(recipeId);
 
-        // 添加isFavorite属性
-        recipeObj.isFavorite = isRecipeFavorited;
+        // 添加isFavorited属性
+        recipeObj.isFavorited = isRecipeFavorited;
 
         // 如果已收藏，添加favoriteId
         if (isRecipeFavorited) {
@@ -337,7 +365,7 @@ class RecipeRepository {
 
     // 标记收藏状态
     return recipes.map((recipe) => {
-      recipe.isFavorite = favoriteIds.includes(recipe._id.toString());
+      recipe.isFavorited = favoriteIds.includes(recipe._id.toString());
       return recipe;
     });
   }
@@ -358,7 +386,7 @@ class RecipeRepository {
       const recipeObj = recipe.toObject();
       const isRecipeFavorited = favoriteIds.includes(recipe._id.toString());
       // 添加isFavorite属性
-      recipeObj.isFavorite = isRecipeFavorited;
+      recipeObj.isFavorited = isRecipeFavorited;
 
       // 如果已收藏，添加favoriteId
       if (isRecipeFavorited) {
