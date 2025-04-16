@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { 
   Box,
   Chip,
@@ -38,15 +38,39 @@ const RecipeFilterMenu = ({ onFilterChange }) => {
   const [spiceLevel, setSpiceLevel] = useState([0, 4]); // From not spicy to very spicy
   const [mealType, setMealType] = useState('all');
   
-  // 当筛选条件改变时，通知父组件
+  // 添加防抖定时器ref
+  const debounceTimerRef = useRef(null);
+  
+  // 使用useCallback优化防抖处理函数
+  const debouncedFilterChange = useCallback((filters) => {
+    // 清除之前的定时器
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    // 设置新的定时器
+    debounceTimerRef.current = setTimeout(() => {
+      onFilterChange?.(filters);
+      debounceTimerRef.current = null;
+    }, 300); // 300ms防抖时间
+  }, [onFilterChange]);
+  
+  // 当筛选条件改变时，通知父组件（使用防抖优化）
   useEffect(() => {
     const filters = {
       cuisines: selectedCuisines,
       spiceLevel,
       mealType
     };
-    onFilterChange?.(filters);
-  }, [selectedCuisines, spiceLevel, mealType, onFilterChange]);
+    debouncedFilterChange(filters);
+    
+    // 组件卸载时清除定时器
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [selectedCuisines, spiceLevel, mealType, debouncedFilterChange]);
 
   const handleCuisineClick = (cuisineId) => {
     if (selectedCuisines.includes(cuisineId)) {
@@ -66,7 +90,7 @@ const RecipeFilterMenu = ({ onFilterChange }) => {
   
   const handleClearFilters = () => {
     setSelectedCuisines([]);
-    setSpiceLevel([0, 3]);
+    setSpiceLevel([0, 4]);
     setMealType('all');
   };
   

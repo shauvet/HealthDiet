@@ -18,7 +18,7 @@ class RecipeStore {
   async fetchRecommendedRecipes(limit = 20) {
     // 如果已经在加载中，不要再次触发
     if (this.loading) {
-      return;
+      return Promise.resolve([]); // 返回一个已解决的Promise
     }
     
     runInAction(() => {
@@ -40,10 +40,13 @@ class RecipeStore {
         this.recipes.recommended = processedRecipes;
         this.error = null;
       });
+      
+      return processedRecipes; // 返回处理后的数据
     } catch (error) {
       runInAction(() => {
         this.error = error.message;
       });
+      return Promise.reject(error); // 返回一个被拒绝的Promise
     } finally {
       runInAction(() => {
         this.loading = false;

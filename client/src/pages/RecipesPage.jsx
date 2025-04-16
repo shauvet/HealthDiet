@@ -62,7 +62,7 @@ const RecipesPage = observer(() => {
   
   // 为对话框关闭后的刷新添加标记
   const dialogRefreshNeeded = useRef(false);
-  
+
   useEffect(() => {
     // 为当前标签页加载数据
     if (tabValue === 0 && !tabInitialized.current[0]) {
@@ -147,20 +147,6 @@ const RecipesPage = observer(() => {
         break;
       default:
         recipes = [];
-    }
-
-    // 检查过滤条件
-    const hasActiveFilters = filters.mealType !== 'all' || 
-                           filters.cuisines.length > 0 || 
-                           filters.spiceLevel[0] !== 0 || 
-                           filters.spiceLevel[1] !== 4;
-    
-    // 如果有激活的过滤条件且推荐菜谱少于20条，重新加载更多推荐菜谱
-    if (tabValue === 0 && hasActiveFilters && recipes.length < 40 && !recipeStore.loading) {
-      // 下一次加载更多数据
-      setTimeout(() => {
-        recipeStore.fetchRecommendedRecipes(40);
-      }, 100);
     }
 
     // Apply filters
