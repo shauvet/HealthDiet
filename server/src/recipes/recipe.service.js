@@ -32,7 +32,7 @@ const RecipeService = {
   },
 
   // 获取推荐食谱
-  async getRecommendedRecipes(userId, limit = 6) {
+  async getRecommendedRecipes(userId, limit = 30) {
     return await RecipeRepository.getRecommendedRecipes(userId, limit);
   },
 

@@ -15,7 +15,7 @@ class RecipeStore {
   }
   
   // Fetch recommended recipes from network
-  async fetchRecommendedRecipes() {
+  async fetchRecommendedRecipes(limit = 20) {
     // 如果已经在加载中，不要再次触发
     if (this.loading) {
       return;
@@ -25,7 +25,7 @@ class RecipeStore {
       this.loading = true;
     });
     try {
-      const response = await api.get('/recipes/recommended');
+      const response = await api.get(`/recipes/recommended?limit=${limit}`);
       
       // 确保每个食谱都有id字段
       const processedRecipes = response.data.map(recipe => {

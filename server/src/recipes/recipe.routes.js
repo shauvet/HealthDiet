@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const RecipeController = require('./recipe.controller');
+const RecipeRepository = require('./repositories/recipe.repository');
 
 // 获取和搜索食谱
 router.get('/', RecipeController.getRecipes);
@@ -25,5 +26,16 @@ router.patch('/:id/ingredients', RecipeController.updateRecipeIngredients);
 // 收藏相关操作
 router.post('/:recipeId/favorite', RecipeController.favoriteRecipe);
 router.delete('/:recipeId/favorite', RecipeController.unfavoriteRecipe);
+
+// 添加清除缓存路由
+router.post('/cache/clear', (req, res) => {
+  try {
+    RecipeRepository.invalidateAllRecommendedCache();
+    res.json({ success: true, message: '成功清除食谱缓存' });
+  } catch (error) {
+    console.error('清除缓存时出错:', error);
+    res.status(500).json({ error: '清除缓存失败' });
+  }
+});
 
 module.exports = router;

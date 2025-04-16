@@ -16,7 +16,9 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  CircularProgress
+  CircularProgress,
+  Checkbox,
+  FormControlLabel
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -30,6 +32,38 @@ const initialIngredient = {
   isMain: true
 };
 
+// 菜系选项
+const cuisineOptions = [
+  { value: '川菜', label: '川菜' },
+  { value: '粤菜', label: '粤菜' },
+  { value: '鲁菜', label: '鲁菜' },
+  { value: '湘菜', label: '湘菜' },
+  { value: '闽菜', label: '闽菜' },
+  { value: '徽菜', label: '徽菜' },
+  { value: '浙菜', label: '浙菜' },
+  { value: '江苏菜', label: '江苏菜' },
+  { value: '西餐', label: '西餐' },
+  { value: '日韩料理', label: '日韩料理' },
+  { value: '其他', label: '其他' }
+];
+
+// 餐类型选项
+const mealTypeOptions = [
+  { value: 'breakfast', label: '早餐' },
+  { value: 'lunch', label: '午餐' },
+  { value: 'dinner', label: '晚餐' },
+  { value: 'snack', label: '小吃/加餐' }
+];
+
+// 辣度选项
+const spiceLevelOptions = [
+  { value: 0, label: '不辣' },
+  { value: 1, label: '微辣' },
+  { value: 2, label: '中辣' },
+  { value: 3, label: '重辣' },
+  { value: 4, label: '麻辣' }
+];
+
 const CreateRecipeDialog = observer(({ open, onClose }) => {
   const [recipe, setRecipe] = useState({
     name: '',
@@ -40,10 +74,12 @@ const CreateRecipeDialog = observer(({ open, onClose }) => {
     spiceLevel: 0,
     ingredients: [{ ...initialIngredient }],
     steps: [''],
-    tags: []
+    tags: [],
+    categories: [] // 添加餐类种类
   });
   
   const [newTag, setNewTag] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -134,21 +170,80 @@ const CreateRecipeDialog = observer(({ open, onClose }) => {
     });
   };
   
-  const handleSubmit = async () => {
-    // Basic validation
-    if (!recipe.name || !recipe.description || recipe.ingredients.length === 0) {
-      return;
+  // 处理特定餐类别的变化
+  const handleMealTypeChange = (event) => {
+    const { value } = event.target;
+    // 确保categories中包含餐类型
+    let categories = [...recipe.categories];
+    
+    // 移除所有现有的餐类型
+    categories = categories.filter(cat => 
+      !['breakfast', 'lunch', 'dinner', 'snack'].includes(cat)
+    );
+    
+    // 添加新选择的餐类型
+    if (value !== 'none') {
+      categories.push(value);
     }
     
+    setRecipe({
+      ...recipe,
+      categories
+    });
+  };
+  
+  // 获取当前选中的餐类型
+  const getCurrentMealType = () => {
+    const mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
+    const found = recipe.categories.find(cat => mealTypes.includes(cat));
+    return found || 'none';
+  };
+  
+  const handleSubmit = async () => {
     try {
-      const success = await recipeStore.createRecipe(recipe);
-      if (success) {
-        // 强制刷新个人菜谱列表
-        await recipeStore.fetchPersonalRecipes();
-        handleClose();
+      // 确保基本数据有效性
+      if (!recipe.name.trim()) {
+        alert('请输入菜谱名称');
+        return;
+      }
+      
+      if (recipe.ingredients.length === 0) {
+        alert('请至少添加一种食材');
+        return;
+      }
+      
+      if (recipe.steps.length === 0 || !recipe.steps[0].trim()) {
+        alert('请至少添加一个烹饪步骤');
+        return;
+      }
+      
+      // 显示处理中提示
+      setIsSubmitting(true);
+      
+      // 提交数据
+      const response = await recipeStore.createRecipe(recipe);
+      
+      if (response) {
+        onClose();
+        // 清空表单
+        setRecipe({
+          name: '',
+          description: '',
+          cookingTime: 30,
+          servings: 2,
+          cuisine: '',
+          spiceLevel: 0,
+          ingredients: [{ ...initialIngredient }],
+          steps: [''],
+          tags: [],
+          categories: []
+        });
       }
     } catch (error) {
-      console.error("Failed to create recipe:", error);
+      console.error('创建菜谱失败:', error);
+      alert('创建菜谱失败，请重试');
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
@@ -163,7 +258,8 @@ const CreateRecipeDialog = observer(({ open, onClose }) => {
       spiceLevel: 0,
       ingredients: [{ ...initialIngredient }],
       steps: [''],
-      tags: []
+      tags: [],
+      categories: []
     });
     setNewTag('');
     onClose();
@@ -232,37 +328,55 @@ const CreateRecipeDialog = observer(({ open, onClose }) => {
                   label="辣度"
                   onChange={handleChange}
                 >
-                  <MenuItem value={0}>不辣</MenuItem>
-                  <MenuItem value={1}>微辣</MenuItem>
-                  <MenuItem value={2}>中辣</MenuItem>
-                  <MenuItem value={3}>重辣</MenuItem>
+                  {spiceLevelOptions.map(option => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
                 </Select>
               </FormControl>
             </Grid>
           </Grid>
           
-          <FormControl fullWidth>
-            <InputLabel id="cuisine-label">菜系</InputLabel>
-            <Select
-              labelId="cuisine-label"
-              name="cuisine"
-              value={recipe.cuisine}
-              label="菜系"
-              onChange={handleChange}
-            >
-              <MenuItem value="川菜">川菜</MenuItem>
-              <MenuItem value="粤菜">粤菜</MenuItem>
-              <MenuItem value="鲁菜">鲁菜</MenuItem>
-              <MenuItem value="湘菜">湘菜</MenuItem>
-              <MenuItem value="闽菜">闽菜</MenuItem>
-              <MenuItem value="徽菜">徽菜</MenuItem>
-              <MenuItem value="浙菜">浙菜</MenuItem>
-              <MenuItem value="江苏菜">江苏菜</MenuItem>
-              <MenuItem value="西餐">西餐</MenuItem>
-              <MenuItem value="日韩料理">日韩料理</MenuItem>
-              <MenuItem value="其他">其他</MenuItem>
-            </Select>
-          </FormControl>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel id="cuisine-label">菜系</InputLabel>
+                <Select
+                  labelId="cuisine-label"
+                  name="cuisine"
+                  value={recipe.cuisine}
+                  label="菜系"
+                  onChange={handleChange}
+                >
+                  {cuisineOptions.map(option => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} sm={6}>
+              <FormControl fullWidth>
+                <InputLabel id="meal-type-label">餐类</InputLabel>
+                <Select
+                  labelId="meal-type-label"
+                  value={getCurrentMealType()}
+                  label="餐类"
+                  onChange={handleMealTypeChange}
+                >
+                  <MenuItem value="none">不指定</MenuItem>
+                  {mealTypeOptions.map(option => (
+                    <MenuItem key={option.value} value={option.value}>
+                      {option.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
           
           {/* Tags */}
           <Box>

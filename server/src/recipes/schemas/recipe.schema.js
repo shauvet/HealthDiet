@@ -11,7 +11,8 @@ Prop({ type: String, default: '/assets/food-placeholder.svg' })(
   Recipe.prototype,
   'imageUrl',
 );
-Prop({ type: Number, unique: true, sparse: true })(Recipe.prototype, 'mockId');
+// 临时字段，用于标识模拟数据，将逐步废弃
+// Prop({ type: Number, unique: true, sparse: true })(Recipe.prototype, 'mockId');
 Prop({ type: Number, default: 0 })(Recipe.prototype, 'preparationTime');
 Prop({ type: Number, required: true })(Recipe.prototype, 'cookingTime');
 Prop({ type: Number, required: true })(Recipe.prototype, 'servings');

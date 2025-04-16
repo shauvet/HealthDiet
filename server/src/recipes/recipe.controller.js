@@ -130,7 +130,7 @@ const RecipeController = {
       // 从请求中获取用户ID
       const userId =
         req.userId || req.query.userId || '000000000000000000000001';
-      const limit = req.query.limit ? parseInt(req.query.limit) : 6;
+      const limit = req.query.limit ? parseInt(req.query.limit) : 30;
 
       const recipes = await RecipeService.getRecommendedRecipes(userId, limit);
       res.json(recipes);

@@ -123,7 +123,7 @@ class RecipeRepository {
   }
 
   // 获取推荐食谱
-  async getRecommendedRecipes(userId, limit = 6) {
+  async getRecommendedRecipes(userId, limit = 30) {
     try {
       // 生成缓存键（结合用户ID和限制数量）
       const cacheKey = `recommended_recipes_${userId}_${limit}`;
@@ -136,24 +136,148 @@ class RecipeRepository {
 
       console.log(`[缓存未命中] 为用户 ${userId} 生成新的推荐食谱`);
 
-      // 获取推荐食谱（随机抽样）
-      const recipes = await Recipe.aggregate([{ $sample: { size: limit } }]);
+      // 优先从真实数据(无mockId)中获取菜谱
+      const realDataQuery = { mockId: { $exists: false } };
+
+      // 增加每种菜系的推荐
+      const cuisines = [
+        '川菜',
+        '粤菜',
+        '鲁菜',
+        '湘菜',
+        '闽菜',
+        '徽菜',
+        '浙菜',
+        '江苏菜',
+        '西餐',
+        '日韩料理',
+      ];
+      const mealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
+      const spiceLevels = [0, 1, 2, 3, 4];
+
+      // 确保每种类型至少有一个菜谱
+      let diverseRecipes = [];
+
+      // 获取真实菜谱数量
+      const realRecipesCount = await Recipe.countDocuments(realDataQuery);
+      console.log(`数据库中真实菜谱数量: ${realRecipesCount}`);
+
+      // 如果真实数据足够多，则采用多样性策略
+      if (realRecipesCount >= 10) {
+        // 为每种菜系获取至少一个菜谱
+        for (const cuisine of cuisines) {
+          const cuisineRecipes = await Recipe.find({
+            ...realDataQuery,
+            cuisine,
+          }).limit(1);
+          diverseRecipes = diverseRecipes.concat(cuisineRecipes);
+        }
+
+        // 为每种辣度获取至少一个菜谱
+        for (const spiceLevel of spiceLevels) {
+          const spiceLevelRecipes = await Recipe.find({
+            ...realDataQuery,
+            spiceLevel,
+          }).limit(1);
+          diverseRecipes = diverseRecipes.concat(spiceLevelRecipes);
+        }
+
+        // 为每种餐类型获取至少一个菜谱
+        for (const mealType of mealTypes) {
+          // 从categories或tags中查找
+          const mealTypeRecipes = await Recipe.find({
+            ...realDataQuery,
+            $or: [
+              { categories: { $in: [mealType] } },
+              { tags: { $in: [mealType] } },
+              { mealType },
+            ],
+          }).limit(1);
+          diverseRecipes = diverseRecipes.concat(mealTypeRecipes);
+        }
+
+        // 去重菜谱
+        const recipeMap = new Map();
+        diverseRecipes.forEach((recipe) => {
+          if (recipe && recipe._id) {
+            recipeMap.set(recipe._id.toString(), recipe);
+          }
+        });
+
+        // 获取不重复的菜谱
+        const uniqueRecipes = Array.from(recipeMap.values());
+
+        // 如果多样化菜谱不足，用随机真实数据补充
+        let finalRecipes = uniqueRecipes;
+        const randomRecipesNeeded = Math.max(0, limit - uniqueRecipes.length);
+
+        if (randomRecipesNeeded > 0) {
+          // 排除已有的菜谱ID
+          const existingIds = uniqueRecipes.map((recipe) => recipe._id);
+          const randomRecipes = await Recipe.aggregate([
+            {
+              $match: {
+                _id: { $nin: existingIds },
+                mockId: { $exists: false }, // 只使用真实数据
+              },
+            },
+            { $sample: { size: randomRecipesNeeded } },
+          ]);
+
+          // 合并结果
+          finalRecipes = uniqueRecipes.concat(randomRecipes);
+        } else if (finalRecipes.length > limit) {
+          // 如果已经超过了需要的数量，随机截取所需数量
+          finalRecipes = finalRecipes
+            .sort(() => 0.5 - Math.random())
+            .slice(0, limit);
+        }
+
+        // 如果真实数据菜谱总数不足，需要从mock数据中补充
+        if (finalRecipes.length < limit) {
+          const mockRecipesNeeded = limit - finalRecipes.length;
+          console.log(`真实数据不足，从mock数据中补充${mockRecipesNeeded}条`);
+
+          // 排除已有的菜谱ID
+          const existingIds = finalRecipes.map((recipe) => recipe._id);
+          const mockRecipes = await Recipe.aggregate([
+            {
+              $match: {
+                _id: { $nin: existingIds },
+                mockId: { $exists: true }, // 使用mock数据
+              },
+            },
+            { $sample: { size: mockRecipesNeeded } },
+          ]);
+
+          // 合并结果
+          finalRecipes = finalRecipes.concat(mockRecipes);
+        }
+
+        diverseRecipes = finalRecipes;
+      } else {
+        // 如果真实数据太少，直接获取所有菜谱并随机排序
+        console.log('真实数据太少，混合返回真实和mock数据');
+        diverseRecipes = await Recipe.aggregate([{ $sample: { size: limit } }]);
+      }
 
       // 查找用户的所有收藏，用于检查食谱是否已收藏
       const favorites = await FavoriteRecipe.find({ userId }).lean();
       const favoriteIds = favorites.map((fav) => fav.recipeId.toString());
 
       // 标记每个食谱的收藏状态
-      const recipesWithFavoriteStatus = recipes.map((recipe) => {
-        const recipeObj = recipe;
-        const isRecipeFavorited = favoriteIds.includes(recipe._id.toString());
+      const recipesWithFavoriteStatus = diverseRecipes.map((recipe) => {
+        const recipeObj = recipe.toObject ? recipe.toObject() : recipe;
+        const recipeId = recipe._id.toString();
+        const isRecipeFavorited = favoriteIds.includes(recipeId);
+
         // 添加isFavorite属性
         recipeObj.isFavorite = isRecipeFavorited;
 
         // 如果已收藏，添加favoriteId
         if (isRecipeFavorited) {
           const favorite = favorites.find(
-            (fav) => fav.recipeId.toString() === recipe._id.toString(),
+            (fav) => fav.recipeId.toString() === recipeId,
           );
           if (favorite) {
             recipeObj.favoriteId = favorite._id;
@@ -170,8 +294,24 @@ class RecipeRepository {
     } catch (error) {
       console.error('Error in getRecommendedRecipes:', error);
       // 如果出错，返回无收藏状态的食谱
-      return await Recipe.aggregate([{ $sample: { size: limit } }]);
+      return await this.getFallbackRecipes(userId, limit);
     }
+  }
+
+  // 获取备用推荐（当真实数据不足时）
+  async getFallbackRecipes(userId, limit = 20) {
+    console.log('使用备用方案获取食谱推荐');
+    const recipes = await Recipe.aggregate([{ $sample: { size: limit } }]);
+
+    // 查找用户的所有收藏
+    const favorites = await FavoriteRecipe.find({ userId }).lean();
+    const favoriteIds = favorites.map((fav) => fav.recipeId.toString());
+
+    // 标记收藏状态
+    return recipes.map((recipe) => {
+      recipe.isFavorite = favoriteIds.includes(recipe._id.toString());
+      return recipe;
+    });
   }
 
   // 获取用户的个人食谱
