@@ -732,7 +732,6 @@ const MealPlanPage = observer(() => {
                                     borderBottom: 'none'
                                   }
                                 }}
-                                onClick={() => handleOpenIngredientsDialog(meal)}
                               >
                                 <Checkbox
                                   edge="start"
@@ -783,19 +782,20 @@ const MealPlanPage = observer(() => {
                                       </IconButton>
                                     </Tooltip>
                                   ) : null}
+                                  {!isPastDate(date) && <Box onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleOpenIngredientsDialog(meal);
+                                      }} sx={{display: 'flex', alignItems: 'center'}}>
                                   <Typography variant="body2" color="text.secondary">查看食谱详情</Typography>
                                   <Tooltip title="查看食谱详情">
                                     <IconButton
                                       edge="end"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleOpenIngredientsDialog(meal);
-                                      }}
                                       size="small"
                                     >
                                       <InfoIcon fontSize="small" />
                                     </IconButton>
                                   </Tooltip>
+                                  </Box>}
                                 </ListItemSecondaryAction>
                               </ListItem>
                             ))}
